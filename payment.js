@@ -4,14 +4,9 @@
     merchantName: "Hugmogri",
     network: "TRON / TRC20-USDT",
     currency: "USDT",
-    baseAmount: "50.000",
+    baseAmount: "208",
     receivingAddress: "TAVdxDuCmXGHnvcHsamw68mTUXSkD8Pp7d",
-    paymentLink: "",
-    qrImageUrl: "",
-    qrServiceUrl: "https://api.qrserver.com/v1/create-qr-code/",
-    statusApiUrl: "/api/check-payment",
-    statusPollMs: 5000,
-    paymentTip: "请使用 TRC20-USDT 向下方地址转账，并保持支付金额与订单金额完全一致。",
+    paymentTip: "请复制金额与地址后完成转账，并保留订单号，后续可用于查询订单。",
   };
 
   const copy = {
@@ -25,13 +20,10 @@
     },
   };
 
-  const PREVIEW_STATUS = new URLSearchParams(window.location.search).get("payment");
-  const IS_FILE_PREVIEW = window.location.protocol === "file:";
-
   let currentOrder = null;
-  let pollTimer = null;
 
   const buyButton = document.querySelector("[data-buy-now]");
+  const orderLookupButton = document.querySelector("[data-order-lookup]");
   if (!buyButton) {
     return;
   }
@@ -45,12 +37,12 @@
       <div class="payment-dialog-header">
         <div>
           <h2 id="payment-title">购买 Eco Bucket Aquarium</h2>
-          <p>选择款式后生成订单与付款信息。</p>
+          <p>先选择款式并填写客户信息，再生成支付信息。</p>
         </div>
         <button class="modal-close" type="button" data-close-payment aria-label="Close purchase dialog">×</button>
       </div>
 
-      <form class="payment-form" data-payment-form>
+      <form class="payment-form" data-payment-form novalidate>
         <fieldset class="option-group">
           <legend>水桶颜色</legend>
           <div class="option-grid">
@@ -79,10 +71,48 @@
           </div>
         </fieldset>
 
+        <section class="customer-section" aria-labelledby="customer-info-title">
+          <h3 id="customer-info-title" class="customer-section-title">用户信息</h3>
+          <div class="customer-grid">
+            <label class="customer-field">
+              <span>名字</span>
+              <input type="text" name="customerName" autocomplete="name" required>
+            </label>
+            <label class="customer-field">
+              <span>邮编</span>
+              <input type="text" name="postalCode" autocomplete="postal-code" required>
+            </label>
+            <label class="customer-field">
+              <span>邮箱</span>
+              <input type="email" name="email" autocomplete="email" inputmode="email" required>
+            </label>
+            <label class="customer-field">
+              <span>电话</span>
+              <input type="tel" name="phone" autocomplete="tel" inputmode="tel" required>
+            </label>
+            <label class="customer-field">
+              <span>省 / 州</span>
+              <input type="text" name="state" autocomplete="address-level1" required>
+            </label>
+            <label class="customer-field">
+              <span>城市</span>
+              <input type="text" name="city" autocomplete="address-level2" required>
+            </label>
+            <label class="customer-field full">
+              <span>具体地址</span>
+              <input type="text" name="streetAddress" autocomplete="street-address" required>
+            </label>
+            <label class="customer-field full">
+              <span>门牌号</span>
+              <input type="text" name="unitNumber" autocomplete="address-line2" required>
+            </label>
+          </div>
+        </section>
+
         <div class="order-summary" aria-live="polite">
           <span>当前选择：<strong data-order-choice>水桶白色 / 支架白色</strong></span>
           <span>支付网络：<strong>${escapeHtml(PAYMENT_CONFIG.network)}</strong></span>
-          <span>基础价格：<strong>${escapeHtml(PAYMENT_CONFIG.baseAmount)} ${escapeHtml(PAYMENT_CONFIG.currency)}</strong></span>
+          <span>支付价格：<strong>${escapeHtml(PAYMENT_CONFIG.baseAmount)} ${escapeHtml(PAYMENT_CONFIG.currency)}</strong></span>
         </div>
 
         <button class="button" type="submit">立即支付</button>
@@ -103,6 +133,18 @@
               <dd data-order-options></dd>
             </div>
             <div>
+              <dt>客户</dt>
+              <dd data-customer-name></dd>
+            </div>
+            <div>
+              <dt>联系方式</dt>
+              <dd data-customer-contact></dd>
+            </div>
+            <div>
+              <dt>收货地址</dt>
+              <dd data-shipping-address></dd>
+            </div>
+            <div>
               <dt>支付金额</dt>
               <dd data-payment-amount></dd>
             </div>
@@ -115,21 +157,12 @@
           <div class="payment-copy-grid">
             <button class="button ghost small" type="button" data-copy-field="amount">复制金额</button>
             <button class="button ghost small" type="button" data-copy-field="address">复制地址</button>
-            <button class="button ghost small" type="button" data-copy-field="summary">复制订单信息</button>
           </div>
 
-          <div class="payment-qr-wrap">
-            <div class="payment-qr" data-payment-qr>正在生成二维码...</div>
-            <p class="payment-qr-caption">可扫码查看付款信息，也可复制地址与金额手动转账。</p>
-          </div>
-
-          <a class="payment-link" data-payment-link href="#" target="_blank" rel="noreferrer" hidden></a>
-          <p class="payment-preview-hint" data-preview-hint hidden></p>
-          <p class="payment-status" data-payment-status>请完成转账。付款后系统会自动查询支付状态。</p>
+          <p class="payment-status" data-payment-status>请复制金额和地址完成转账。付款完成后点击“我已支付”关闭窗口。</p>
 
           <div class="payment-actions">
-            <button class="button" type="button" data-check-payment>我已支付，立即查询</button>
-            <button class="button ghost" type="button" data-close-payment>关闭</button>
+            <button class="button" type="button" data-confirm-paid>我已支付</button>
           </div>
         </div>
       </div>
@@ -142,16 +175,22 @@
   const choice = modal.querySelector("[data-order-choice]");
   const orderId = modal.querySelector("[data-order-id]");
   const orderOptions = modal.querySelector("[data-order-options]");
+  const customerName = modal.querySelector("[data-customer-name]");
+  const customerContact = modal.querySelector("[data-customer-contact]");
+  const shippingAddress = modal.querySelector("[data-shipping-address]");
   const paymentAmount = modal.querySelector("[data-payment-amount]");
   const paymentAddress = modal.querySelector("[data-payment-address]");
-  const paymentQr = modal.querySelector("[data-payment-qr]");
-  const paymentLink = modal.querySelector("[data-payment-link]");
   const paymentStatus = modal.querySelector("[data-payment-status]");
   const paymentNote = modal.querySelector("[data-payment-note]");
-  const previewHint = modal.querySelector("[data-preview-hint]");
-  const checkPaymentButton = modal.querySelector("[data-check-payment]");
+  const paidButton = modal.querySelector("[data-confirm-paid]");
 
   buyButton.addEventListener("click", openModal);
+
+  if (orderLookupButton) {
+    orderLookupButton.addEventListener("click", () => {
+      window.alert("查询订单功能下一步接入。");
+    });
+  }
 
   modal.addEventListener("click", (event) => {
     if (event.target.closest("[data-close-payment]")) {
@@ -176,8 +215,8 @@
     startPayment();
   });
 
-  checkPaymentButton.addEventListener("click", () => {
-    checkPaymentStatus({ manual: true });
+  paidButton.addEventListener("click", () => {
+    closeModal();
   });
 
   document.addEventListener("keydown", (event) => {
@@ -189,6 +228,7 @@
   function openModal() {
     modal.hidden = false;
     document.body.classList.add("modal-lock");
+    resetGeneratedPayment();
     updateChoice();
     window.setTimeout(() => {
       modal.querySelector("input[name='bucketColor']:checked").focus();
@@ -198,8 +238,15 @@
   function closeModal() {
     modal.hidden = true;
     document.body.classList.remove("modal-lock");
-    stopPolling();
+    resetGeneratedPayment();
     buyButton.focus();
+  }
+
+  function resetGeneratedPayment() {
+    currentOrder = null;
+    result.hidden = true;
+    paymentNote.textContent = "";
+    paymentStatus.textContent = "请复制金额和地址完成转账。付款完成后点击“我已支付”关闭窗口。";
   }
 
   function updateChoice() {
@@ -207,148 +254,41 @@
   }
 
   function startPayment() {
+    if (!form.reportValidity()) {
+      return;
+    }
+
     const selections = getSelections();
+    const customer = getCustomerInfo();
+
     currentOrder = {
       id: createOrderId(),
       productName: PAYMENT_CONFIG.productName,
       bucketColor: selections.bucketColor,
       standColor: selections.standColor,
       selectionText: buildChoiceText(selections),
-      createdAt: new Date().toISOString(),
+      invoiceAmount: PAYMENT_CONFIG.baseAmount,
+      customer,
+      shippingText: buildShippingText(customer),
     };
-    currentOrder.invoiceAmount = createInvoiceAmount(currentOrder.id, PAYMENT_CONFIG.baseAmount);
-    currentOrder.referenceText = createReferenceText(currentOrder);
-    currentOrder.addressUrl = PAYMENT_CONFIG.paymentLink || buildAddressUrl(PAYMENT_CONFIG.receivingAddress);
 
     orderId.textContent = currentOrder.id;
     orderOptions.textContent = currentOrder.selectionText;
+    customerName.textContent = currentOrder.customer.customerName;
+    customerContact.textContent = `${currentOrder.customer.phone} / ${currentOrder.customer.email}`;
+    shippingAddress.textContent = currentOrder.shippingText;
     paymentAmount.textContent = `${currentOrder.invoiceAmount} ${PAYMENT_CONFIG.currency}`;
     paymentAddress.textContent = PAYMENT_CONFIG.receivingAddress;
     paymentNote.textContent = PAYMENT_CONFIG.paymentTip;
-    paymentStatus.textContent = "请完成转账。付款后系统会自动查询支付状态。";
-    previewHint.hidden = true;
+    paymentStatus.textContent = "请复制金额和地址完成转账。付款完成后点击“我已支付”关闭窗口。";
 
-    renderPaymentTarget();
     result.hidden = false;
     result.scrollIntoView({ block: "nearest", behavior: "smooth" });
-    startPolling();
-  }
-
-  function renderPaymentTarget() {
-    paymentQr.innerHTML = "";
-    paymentLink.hidden = true;
-
-    const image = document.createElement("img");
-    image.alt = "虚拟货币支付二维码";
-    image.loading = "lazy";
-    image.decoding = "async";
-    image.src = PAYMENT_CONFIG.qrImageUrl || buildGeneratedQrUrl(currentOrder.referenceText);
-    image.addEventListener("error", () => {
-      paymentQr.textContent = "二维码加载失败，请复制地址和金额后手动转账。";
-    });
-    paymentQr.appendChild(image);
-
-    if (currentOrder.addressUrl) {
-      paymentLink.href = currentOrder.addressUrl;
-      paymentLink.textContent = PAYMENT_CONFIG.paymentLink ? "打开支付链接" : "查看收款地址";
-      paymentLink.hidden = false;
-    }
-  }
-
-  function startPolling() {
-    stopPolling();
-
-    if (IS_FILE_PREVIEW) {
-      paymentStatus.textContent = "当前是 file:// 本地文件预览，支付状态查询不会运行。请使用本地预览地址 http://127.0.0.1:4190/ 或线上域名测试。";
-      previewHint.hidden = false;
-      previewHint.textContent = "本地文件模式下没有 /api/check-payment。";
-      return;
-    }
-
-    if (!PAYMENT_CONFIG.statusApiUrl) {
-      paymentStatus.textContent = "支付状态查询接口尚未配置。配置 Cloudflare Pages Function 后即可自动查询。";
-      return;
-    }
-
-    checkPaymentStatus({ manual: false });
-    pollTimer = window.setInterval(() => {
-      checkPaymentStatus({ manual: false });
-    }, PAYMENT_CONFIG.statusPollMs);
-  }
-
-  function stopPolling() {
-    if (pollTimer) {
-      window.clearInterval(pollTimer);
-      pollTimer = null;
-    }
-  }
-
-  async function checkPaymentStatus({ manual }) {
-    if (!currentOrder) {
-      return;
-    }
-
-    if (IS_FILE_PREVIEW) {
-      paymentStatus.textContent = "请切换到 http://127.0.0.1:4190/ 或线上域名，才能测试支付状态查询。";
-      return;
-    }
-
-    if (!PAYMENT_CONFIG.statusApiUrl) {
-      paymentStatus.textContent = "支付状态查询接口尚未配置。请先完成 Cloudflare Pages Function 配置。";
-      return;
-    }
-
-    checkPaymentButton.disabled = true;
-    if (manual) {
-      paymentStatus.textContent = "正在查询支付状态...";
-    }
-
-    try {
-      const url = new URL(PAYMENT_CONFIG.statusApiUrl, window.location.href);
-      url.searchParams.set("orderId", currentOrder.id);
-      url.searchParams.set("bucketColor", currentOrder.bucketColor);
-      url.searchParams.set("standColor", currentOrder.standColor);
-      url.searchParams.set("address", PAYMENT_CONFIG.receivingAddress);
-      url.searchParams.set("amount", currentOrder.invoiceAmount);
-      url.searchParams.set("currency", PAYMENT_CONFIG.currency);
-      url.searchParams.set("createdAt", currentOrder.createdAt);
-      if (PREVIEW_STATUS) {
-        url.searchParams.set("preview", PREVIEW_STATUS);
-      }
-
-      const response = await fetch(url.toString(), {
-        headers: {
-          Accept: "application/json",
-        },
-      });
-
-      if (!response.ok) {
-        throw new Error(`Status ${response.status}`);
-      }
-
-      const data = await response.json();
-      if (data.configured === false) {
-        paymentStatus.textContent = data.message || "支付状态查询接口尚未配置。";
-        return;
-      }
-
-      const isPaid = data.paid === true || data.status === "paid" || data.status === "success";
-      if (isPaid) {
-        stopPolling();
-        paymentStatus.textContent = data.message || "支付已确认，我们会尽快处理订单。";
-      } else {
-        paymentStatus.textContent = data.message || "暂未查询到到账记录，请稍后再试。";
-      }
-    } catch (error) {
-      paymentStatus.textContent = "支付状态查询失败，请稍后重试。";
-    } finally {
-      checkPaymentButton.disabled = false;
-    }
   }
 
   function handleCopy(type) {
     if (!currentOrder) {
-      paymentStatus.textContent = "请先生成订单，再复制付款信息。";
+      paymentStatus.textContent = "请先填写信息并生成支付内容。";
       return;
     }
 
@@ -359,11 +299,6 @@
 
     if (type === "address") {
       copyText(PAYMENT_CONFIG.receivingAddress, "收款地址已复制。");
-      return;
-    }
-
-    if (type === "summary") {
-      copyText(currentOrder.referenceText, "订单支付信息已复制。");
     }
   }
 
@@ -375,19 +310,31 @@
     };
   }
 
+  function getCustomerInfo() {
+    const formData = new FormData(form);
+    return {
+      customerName: String(formData.get("customerName") || "").trim(),
+      postalCode: String(formData.get("postalCode") || "").trim(),
+      email: String(formData.get("email") || "").trim(),
+      phone: String(formData.get("phone") || "").trim(),
+      state: String(formData.get("state") || "").trim(),
+      city: String(formData.get("city") || "").trim(),
+      streetAddress: String(formData.get("streetAddress") || "").trim(),
+      unitNumber: String(formData.get("unitNumber") || "").trim(),
+    };
+  }
+
   function buildChoiceText(values) {
     return `水桶${copy.bucketColor[values.bucketColor]} / 支架${copy.standColor[values.standColor]}`;
   }
 
-  function createReferenceText(order) {
+  function buildShippingText(customer) {
     return [
-      `${PAYMENT_CONFIG.merchantName} ${PAYMENT_CONFIG.productName}`,
-      `订单号: ${order.id}`,
-      `款式: ${order.selectionText}`,
-      `网络: ${PAYMENT_CONFIG.network}`,
-      `金额: ${order.invoiceAmount} ${PAYMENT_CONFIG.currency}`,
-      `地址: ${PAYMENT_CONFIG.receivingAddress}`,
-    ].join("\n");
+      `${customer.state} ${customer.city}`,
+      customer.streetAddress,
+      `门牌号: ${customer.unitNumber}`,
+      `邮编: ${customer.postalCode}`,
+    ].join("，");
   }
 
   function createOrderId() {
@@ -402,35 +349,6 @@
     ].join("");
     const random = Math.random().toString(36).slice(2, 7).toUpperCase();
     return `AQ${stamp}${random}`;
-  }
-
-  function createInvoiceAmount(orderId, baseAmount) {
-    const normalizedBase = Number.parseFloat(baseAmount);
-    if (!Number.isFinite(normalizedBase)) {
-      return baseAmount;
-    }
-
-    let hash = 0;
-    for (let index = 0; index < orderId.length; index += 1) {
-      hash = (hash * 31 + orderId.charCodeAt(index)) % 899;
-    }
-
-    const offset = (hash + 1) / 1000;
-    return (normalizedBase + offset).toFixed(3);
-  }
-
-  function buildGeneratedQrUrl(text) {
-    const query = new URLSearchParams({
-      size: "240x240",
-      format: "png",
-      margin: "12",
-      data: text,
-    });
-    return `${PAYMENT_CONFIG.qrServiceUrl}?${query.toString()}`;
-  }
-
-  function buildAddressUrl(address) {
-    return `https://tronscan.org/#/address/${encodeURIComponent(address)}`;
   }
 
   async function copyText(value, successMessage) {

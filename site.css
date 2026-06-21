@@ -168,6 +168,10 @@ img {
   background: #05080a;
 }
 
+.lookup-button {
+  min-width: 172px;
+}
+
 .sr-only {
   position: absolute;
   width: 1px;
@@ -552,6 +556,54 @@ h2 {
   outline-offset: 2px;
 }
 
+.customer-section {
+  margin: 0 0 18px;
+  display: grid;
+  gap: 12px;
+}
+
+.customer-section-title {
+  margin: 0;
+  font-size: 1rem;
+}
+
+.customer-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.customer-field {
+  display: grid;
+  gap: 7px;
+}
+
+.customer-field.full {
+  grid-column: 1 / -1;
+}
+
+.customer-field span {
+  color: var(--ink);
+  font-size: 0.9rem;
+  font-weight: 700;
+}
+
+.customer-field input {
+  width: 100%;
+  min-height: 44px;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #ffffff;
+  color: var(--ink);
+  font: inherit;
+}
+
+.customer-field input:focus-visible {
+  outline: 3px solid rgba(25, 155, 176, 0.28);
+  outline-offset: 2px;
+}
+
 .order-summary {
   margin: 2px 0 18px;
   padding: 14px;
@@ -587,7 +639,6 @@ h2 {
 }
 
 .payment-note,
-.payment-qr-caption,
 .payment-preview-hint {
   margin: 0;
   color: var(--muted);
@@ -623,46 +674,8 @@ h2 {
 
 .payment-copy-grid {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 10px;
-}
-
-.payment-qr-wrap {
-  display: grid;
-  gap: 10px;
-}
-
-.payment-qr {
-  width: min(100%, 220px);
-  aspect-ratio: 1;
-  margin: 2px auto 0;
-  display: grid;
-  place-items: center;
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  background:
-    linear-gradient(45deg, #05080a 25%, transparent 25%) 0 0 / 18px 18px,
-    linear-gradient(45deg, transparent 75%, #05080a 75%) 0 0 / 18px 18px,
-    #ffffff;
-  color: var(--muted);
-  font-size: 0.88rem;
-  font-weight: 800;
-  text-align: center;
-}
-
-.payment-qr img {
-  width: 100%;
-  height: 100%;
-  object-fit: contain;
-  border-radius: 7px;
-}
-
-.payment-link {
-  display: inline-flex;
-  justify-content: center;
-  color: var(--accent);
-  font-weight: 800;
-  overflow-wrap: anywhere;
 }
 
 .payment-status {
@@ -817,7 +830,7 @@ h2 {
 
   .hero-actions {
     display: grid;
-    grid-template-columns: 1fr;
+    grid-template-columns: 1fr 1fr;
     gap: 10px;
   }
 
@@ -897,6 +910,7 @@ h2 {
     padding-right: 16px;
   }
 
+  .customer-grid,
   .payment-copy-grid {
     grid-template-columns: 1fr;
   }
