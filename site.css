@@ -511,6 +511,11 @@ h2 {
   font-weight: 800;
 }
 
+.option-group.is-error legend,
+.customer-field.is-error span {
+  color: #b42318;
+}
+
 .option-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -547,6 +552,11 @@ h2 {
   border-color: #05080a;
   background: #f3f7f8;
   box-shadow: inset 0 0 0 1px #05080a;
+}
+
+.option-group.is-error .option-card span {
+  border-color: rgba(180, 35, 24, 0.45);
+  background: #fff7f6;
 }
 
 .option-card input:focus-visible + span,
@@ -604,6 +614,12 @@ h2 {
   outline-offset: 2px;
 }
 
+.customer-field.is-error input,
+.customer-field input[aria-invalid="true"] {
+  border-color: rgba(180, 35, 24, 0.55);
+  background: #fff7f6;
+}
+
 .order-summary {
   margin: 2px 0 18px;
   padding: 14px;
@@ -618,6 +634,17 @@ h2 {
 
 .order-summary strong {
   color: var(--ink);
+}
+
+.payment-form-alert {
+  margin: 2px 0 18px;
+  padding: 10px 12px;
+  border: 1px solid rgba(180, 35, 24, 0.2);
+  border-radius: 8px;
+  background: #fff7f6;
+  color: #912018;
+  font-size: 0.92rem;
+  line-height: 1.5;
 }
 
 .payment-result[hidden] {
