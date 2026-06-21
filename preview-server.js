@@ -4,6 +4,8 @@ const path = require("path");
 
 const root = __dirname;
 const port = Number(process.env.PORT || 4190);
+const ADMIN_TOKEN = "preview-admin-token";
+const PAYMENT_MODE = String(process.env.PAYMENT_MODE || "test").trim().toLowerCase() === "production" ? "production" : "test";
 
 const types = {
   ".html": "text/html; charset=utf-8",
@@ -30,9 +32,9 @@ const server = http.createServer(async (req, res) => {
     return sendJson(res, 200, { success: true, order });
   }
 
-  if (url.pathname === "/api/check-payment") {
+  if (url.pathname === "/api/check-payment" && req.method === "GET") {
     const orderId = String(url.searchParams.get("orderId") || "").trim();
-    const preview = (url.searchParams.get("preview") || "").toLowerCase();
+    const preview = String(url.searchParams.get("preview") || "").toLowerCase();
     const order = orders.get(orderId);
 
     if (!order) {
@@ -41,13 +43,13 @@ const server = http.createServer(async (req, res) => {
         configured: true,
         paid: false,
         status: "not_found",
-        message: "预览模式：订单不存在。",
+        message: "Preview order not found.",
       });
     }
 
     if (preview === "paid" || url.searchParams.get("payment") === "paid") {
       order.paymentStatus = "paid";
-      order.paymentStatusText = "已支付";
+      order.paymentStatusText = "Paid";
       order.paymentTxId = "preview-transaction";
       order.paymentConfirmedAt = new Date().toISOString();
     }
@@ -60,14 +62,13 @@ const server = http.createServer(async (req, res) => {
       txId: order.paymentTxId || "",
       order: orderToResponse(order),
       message: order.paymentStatus === "paid"
-        ? "预览模式：支付已确认。"
-        : "预览模式：暂未查询到该订单对应的到账记录。",
+        ? "Preview payment marked as paid."
+        : "Preview payment is still pending.",
     });
   }
 
-  if (url.pathname === "/api/order-lookup") {
+  if (url.pathname === "/api/order-lookup" && req.method === "GET") {
     const phone = normalizePhone(url.searchParams.get("phone") || "");
-
     const matched = Array.from(orders.values())
       .filter((order) => phone && normalizePhone(order.customer.phone) === phone)
       .sort((left, right) => right.createdAt.localeCompare(left.createdAt))
@@ -76,6 +77,63 @@ const server = http.createServer(async (req, res) => {
     return sendJson(res, 200, {
       success: true,
       orders: matched,
+    });
+  }
+
+  if (url.pathname === "/api/admin-orders" && req.method === "GET") {
+    const token = String(url.searchParams.get("token") || "").trim();
+    if (token !== ADMIN_TOKEN) {
+      return sendJson(res, 401, { success: false, message: "Unauthorized." });
+    }
+
+    const phone = normalizePhone(url.searchParams.get("phone") || "");
+    const paymentStatus = String(url.searchParams.get("paymentStatus") || "").trim();
+    const matched = Array.from(orders.values())
+      .filter((order) => {
+        const phoneOk = !phone || normalizePhone(order.customer.phone) === phone;
+        const paymentOk = !paymentStatus || order.paymentStatus === paymentStatus;
+        return phoneOk && paymentOk;
+      })
+      .sort((left, right) => right.createdAt.localeCompare(left.createdAt))
+      .map(orderToResponse);
+
+    return sendJson(res, 200, { success: true, orders: matched });
+  }
+
+  if (url.pathname === "/api/admin-update-order" && req.method === "POST") {
+    const auth = String(req.headers.authorization || "");
+    if (auth !== `Bearer ${ADMIN_TOKEN}`) {
+      return sendJson(res, 401, { success: false, message: "Unauthorized." });
+    }
+
+    const body = await readBody(req);
+    const payload = JSON.parse(body || "{}");
+    const orderId = String(payload.orderId || "").trim();
+    const order = orders.get(orderId);
+    if (!order) {
+      return sendJson(res, 404, { success: false, message: "Order not found." });
+    }
+
+    order.logistics.waybillNumber = String(payload.logisticsWaybill || "").trim();
+    order.logistics.provider = "yanwen";
+    order.logistics.status = String(payload.logisticsStatus || "").trim();
+    order.logistics.tracking = order.logistics.waybillNumber
+      ? {
+          available: true,
+          checkpoints: [
+            {
+              time: new Date().toISOString(),
+              message: order.logistics.status || "Waybill saved in preview mode",
+            },
+          ],
+        }
+      : null;
+
+    return sendJson(res, 200, {
+      success: true,
+      orderId,
+      logisticsWaybill: order.logistics.waybillNumber,
+      logisticsProvider: order.logistics.provider,
     });
   }
 
@@ -105,6 +163,8 @@ const server = http.createServer(async (req, res) => {
 
 server.listen(port, "127.0.0.1", () => {
   console.log(`Preview server: http://127.0.0.1:${port}/`);
+  console.log(`Preview admin token: ${ADMIN_TOKEN}`);
+  console.log(`Preview payment mode: ${PAYMENT_MODE}`);
 });
 
 function sendJson(res, status, body) {
@@ -127,10 +187,13 @@ function readBody(req) {
 function createPreviewOrder(payload) {
   const createdAt = new Date().toISOString();
   const orderId = createOrderId();
-  const baseAmountUsd = 58 + (payload.country === "australia" ? 100 : 150);
-  const payableAmountUsdt = normalizeAmount(baseAmountUsd + 0.003217);
-  const selectionText = `水桶${payload.bucketColor === "lightBlue" ? "浅蓝色" : "白色"} / 支架${payload.standColor === "black" ? "黑色" : "白色"}`;
-  const countryText = payload.country === "australia" ? "澳大利亚" : "美国";
+  const country = payload.country === "australia" ? "australia" : "usa";
+  const baseAmountUsd = 58 + (country === "australia" ? 100 : 150);
+  const range = getPreviewRange(country);
+  const payableAmountUsdt = normalizeAmount(range.min + Math.floor(Math.random() * 20) / 10, 1);
+  const amountTailUsdt = normalizeAmount(baseAmountUsd - Number(payableAmountUsdt), 2);
+  const selectionText = `Bucket ${payload.bucketColor || ""} / Stand ${payload.standColor || ""}`;
+  const countryText = country === "australia" ? "Australia" : "USA";
   const customer = {
     name: String(payload.customerName || ""),
     postalCode: String(payload.postalCode || ""),
@@ -146,19 +209,19 @@ function createPreviewOrder(payload) {
     id: orderId,
     createdAt,
     paymentStatus: "pending",
-    paymentStatusText: "待支付",
+    paymentStatusText: "Pending",
     paymentTxId: "",
     paymentConfirmedAt: "",
     selectionText,
     countryText,
     customer,
-    shippingText: `${customer.state} ${customer.city}，${customer.streetAddress}，门牌号: ${customer.unitNumber}，邮编: ${customer.postalCode}`,
+    shippingText: `${customer.state} ${customer.city}, ${customer.streetAddress}, Unit ${customer.unitNumber}, Postal ${customer.postalCode}`,
     payment: {
       network: "TRON / TRC20-USDT",
       currency: "USDT",
-      baseAmountUsd: normalizeBaseAmount(baseAmountUsd),
+      baseAmountUsd: normalizeAmount(baseAmountUsd, 2),
       payableAmountUsdt,
-      amountTailUsdt: "0.003217",
+      amountTailUsdt,
       receivingAddress: "TAVdxDuCmXGHnvcHsamw68mTUXSkD8Pp7d",
     },
     logistics: {
@@ -168,6 +231,18 @@ function createPreviewOrder(payload) {
       tracking: null,
     },
   };
+}
+
+function getPreviewRange(country) {
+  if (PAYMENT_MODE === "production") {
+    return country === "australia"
+      ? { min: 156.0, max: 157.9 }
+      : { min: 206.0, max: 207.9 };
+  }
+
+  return country === "australia"
+    ? { min: 3.0, max: 4.9 }
+    : { min: 1.0, max: 2.9 };
 }
 
 function orderToResponse(order) {
@@ -211,12 +286,7 @@ function normalizePhone(value) {
   return raw.replace(/[^\d]/g, "");
 }
 
-function normalizeAmount(value) {
+function normalizeAmount(value, digits = 6) {
   const numeric = Number.parseFloat(String(value || "0"));
-  return Number.isFinite(numeric) ? numeric.toFixed(6) : "0.000000";
-}
-
-function normalizeBaseAmount(value) {
-  const numeric = Number.parseFloat(String(value || "0"));
-  return Number.isFinite(numeric) ? numeric.toFixed(2) : "0.00";
+  return Number.isFinite(numeric) ? numeric.toFixed(digits) : (0).toFixed(digits);
 }

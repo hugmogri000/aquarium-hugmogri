@@ -1,13 +1,10 @@
-import { COPY, ORDER_LOOKUP_LIMIT, PAYMENT_CONFIG } from "./config.js";
+import { COPY, ORDER_LOOKUP_LIMIT, PAYMENT_CONFIG, getPayableAmountConfig } from "./config.js";
 
-const AMOUNT_MICRO_SCALE = 1_000_000;
-const MAX_TAIL_MICRO = 9_999;
-const MIN_TAIL_MICRO = 100;
-const ORDER_WINDOW_MS = 14 * 24 * 60 * 60 * 1000;
+const ORDER_WINDOW_MS = PAYMENT_CONFIG.paymentMatchWindowHours * 60 * 60 * 1000;
 
 export function validateOrderPayload(payload) {
   if (!payload || typeof payload !== "object") {
-    return { ok: false, message: "订单信息格式不正确。" };
+    return { ok: false, message: "Invalid order payload." };
   }
 
   const bucketColor = String(payload.bucketColor || "");
@@ -26,25 +23,19 @@ export function validateOrderPayload(payload) {
   };
 
   const issues = [];
-  if (!COPY.bucketColor[bucketColor]) {
-    issues.push("水桶颜色");
-  }
-  if (!COPY.standColor[standColor]) {
-    issues.push("支架颜色");
-  }
-  if (!COPY.country[country]) {
-    issues.push("国家");
-  }
+  if (!COPY.bucketColor[bucketColor]) issues.push("bucket color");
+  if (!COPY.standColor[standColor]) issues.push("stand color");
+  if (!COPY.country[country]) issues.push("country");
 
   for (const [key, label] of [
-    ["customerName", "名字"],
-    ["postalCode", "邮编"],
-    ["email", "邮箱"],
-    ["phone", "电话"],
-    ["state", "省 / 州"],
-    ["city", "城市"],
-    ["streetAddress", "具体地址"],
-    ["unitNumber", "门牌号"],
+    ["customerName", "name"],
+    ["postalCode", "postal code"],
+    ["email", "email"],
+    ["phone", "phone"],
+    ["state", "state / province"],
+    ["city", "city"],
+    ["streetAddress", "street address"],
+    ["unitNumber", "unit number"],
   ]) {
     if (!customer[key]) {
       issues.push(label);
@@ -52,34 +43,34 @@ export function validateOrderPayload(payload) {
   }
 
   if (customer.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(customer.email)) {
-    issues.push("邮箱格式不正确");
+    issues.push("valid email");
   }
 
-  if (!issues.length) {
+  if (issues.length) {
     return {
-      ok: true,
-      value: {
-        bucketColor,
-        standColor,
-        country,
-        customer,
-      },
+      ok: false,
+      message: `Please complete: ${issues.join(", ")}`,
     };
   }
 
   return {
-    ok: false,
-    message: `请先填写或选择：${issues.join("、")}`,
+    ok: true,
+    value: {
+      bucketColor,
+      standColor,
+      country,
+      customer,
+    },
   };
 }
 
-export async function createOrder(db, payload) {
+export async function createOrder(db, payload, env = {}) {
   const createdAtMs = Date.now();
   const createdAt = new Date(createdAtMs).toISOString();
   const updatedAt = createdAt;
   const orderId = createOrderId(createdAtMs);
   const baseAmountUsd = calculateBaseAmount(payload.country);
-  const allocation = await allocateUniqueAmount(db, baseAmountUsd, createdAtMs);
+  const allocation = await allocateUniqueAmount(db, payload.country, baseAmountUsd, createdAtMs, env);
   const selectionText = buildSelectionText(payload);
   const countryText = COPY.country[payload.country];
   const shippingText = buildShippingText(payload.customer);
@@ -194,11 +185,38 @@ export async function lookupOrders(db, query) {
     return [];
   }
 
-  const statement = db
+  const result = await db
     .prepare("SELECT * FROM orders WHERE lookup_phone = ? OR lookup_phone = ? ORDER BY created_at_ms DESC LIMIT ?")
-    .bind(phone, legacyPhone, limit);
+    .bind(phone, legacyPhone, limit)
+    .all();
 
-  const result = await statement.all();
+  const rows = Array.isArray(result.results) ? result.results : [];
+  return rows.map(mapOrderRow);
+}
+
+export async function listOrders(db, query = {}) {
+  const limit = clampAdminLimit(query.limit);
+  const rawPhone = normalizePhone(query.phone || "");
+  const rawPaymentStatus = normalizeText(query.paymentStatus);
+  const where = [];
+  const binds = [];
+
+  if (rawPhone) {
+    where.push("(lookup_phone = ? OR lookup_phone = ?)");
+    binds.push(rawPhone, `+${rawPhone}`);
+  }
+
+  if (rawPaymentStatus) {
+    where.push("payment_status = ?");
+    binds.push(rawPaymentStatus);
+  }
+
+  const sql = `SELECT * FROM orders${
+    where.length ? ` WHERE ${where.join(" AND ")}` : ""
+  } ORDER BY created_at_ms DESC LIMIT ?`;
+  binds.push(limit);
+
+  const result = await db.prepare(sql).bind(...binds).all();
   const rows = Array.isArray(result.results) ? result.results : [];
   return rows.map(mapOrderRow);
 }
@@ -283,16 +301,16 @@ export function serializeOrder(order, tracking = null) {
 }
 
 export function buildSelectionText(values) {
-  return `水桶${COPY.bucketColor[values.bucketColor]} / 支架${COPY.standColor[values.standColor]}`;
+  return `Bucket ${COPY.bucketColor[values.bucketColor]} / Stand ${COPY.standColor[values.standColor]}`;
 }
 
 export function buildShippingText(customer) {
   return [
     `${customer.state} ${customer.city}`,
     customer.streetAddress,
-    `门牌号: ${customer.unitNumber}`,
-    `邮编: ${customer.postalCode}`,
-  ].join("，");
+    `Unit: ${customer.unitNumber}`,
+    `Postal code: ${customer.postalCode}`,
+  ].join(", ");
 }
 
 export function calculateBaseAmount(country) {
@@ -307,14 +325,27 @@ function clampLimit(value) {
   return Math.max(1, Math.min(20, numeric));
 }
 
-async function allocateUniqueAmount(db, baseAmountUsd, createdAtMs) {
-  const baseMicro = Math.round(baseAmountUsd * AMOUNT_MICRO_SCALE);
-  const recentThreshold = new Date(createdAtMs - ORDER_WINDOW_MS).toISOString();
-  const seed = createdAtMs % MAX_TAIL_MICRO;
+function clampAdminLimit(value) {
+  const numeric = Number.parseInt(value, 10);
+  if (!Number.isFinite(numeric)) {
+    return 100;
+  }
+  return Math.max(1, Math.min(200, numeric));
+}
 
-  for (let offset = 0; offset <= MAX_TAIL_MICRO; offset += 1) {
-    const tailMicro = MIN_TAIL_MICRO + ((seed + offset) % (MAX_TAIL_MICRO - MIN_TAIL_MICRO + 1));
-    const payableAmountUsdt = toMoney((baseMicro + tailMicro) / AMOUNT_MICRO_SCALE, 6);
+async function allocateUniqueAmount(db, country, baseAmountUsd, createdAtMs, env) {
+  const recentThreshold = new Date(createdAtMs - ORDER_WINDOW_MS).toISOString();
+  const range = getPayableAmountConfig(country, env);
+  if (!range) {
+    throw new Error("Unsupported country for payment allocation.");
+  }
+
+  const slots = buildAmountSlots(range);
+  const seed = createdAtMs % slots.length;
+
+  for (let offset = 0; offset < slots.length; offset += 1) {
+    const payableAmount = slots[(seed + offset) % slots.length];
+    const payableAmountUsdt = toMoney(payableAmount, 1);
     const existing = await db
       .prepare(
         `SELECT id FROM orders
@@ -327,12 +358,25 @@ async function allocateUniqueAmount(db, baseAmountUsd, createdAtMs) {
     if (!existing) {
       return {
         payableAmountUsdt,
-        amountTailUsdt: toMoney(tailMicro / AMOUNT_MICRO_SCALE, 6),
+        amountTailUsdt: toMoney(baseAmountUsd - payableAmount, 2),
       };
     }
   }
 
-  throw new Error("无法分配唯一支付金额，请稍后再试。");
+  throw new Error("No unique payment slot is currently available. Please try again later.");
+}
+
+function buildAmountSlots(range) {
+  const slots = [];
+  const min = Math.round(range.min * 10);
+  const max = Math.round(range.max * 10);
+  const step = Math.max(1, Math.round(range.step * 10));
+
+  for (let value = min; value <= max; value += step) {
+    slots.push(value / 10);
+  }
+
+  return slots;
 }
 
 function mapOrderRow(row) {
@@ -347,8 +391,8 @@ function mapOrderRow(row) {
     paymentConfirmedAt: String(row.payment_confirmed_at || ""),
     paymentConfirmedAtMs: Number(row.payment_confirmed_at_ms || 0),
     baseAmountUsd: String(row.base_amount_usd || "0.00"),
-    payableAmountUsdt: String(row.payable_amount_usdt || "0.000000"),
-    amountTailUsdt: String(row.amount_tail_usdt || "0.000000"),
+    payableAmountUsdt: String(row.payable_amount_usdt || "0.0"),
+    amountTailUsdt: String(row.amount_tail_usdt || "0.00"),
     currency: String(row.currency || PAYMENT_CONFIG.paymentCurrency),
     network: String(row.network || PAYMENT_CONFIG.network),
     receivingAddress: String(row.receiving_address || PAYMENT_CONFIG.receivingAddress),
@@ -379,13 +423,13 @@ function mapOrderRow(row) {
 function getPaymentStatusText(status) {
   switch (status) {
     case "paid":
-      return "已支付";
+      return "Paid";
     case "pending":
-      return "待支付";
+      return "Pending";
     case "not_configured":
-      return "支付检测未配置";
+      return "TRON API not configured";
     default:
-      return "待支付";
+      return "Pending";
   }
 }
 
@@ -412,8 +456,7 @@ function normalizeEmail(value) {
 }
 
 function normalizePhone(value) {
-  const raw = normalizeText(value);
-  return raw.replace(/[^\d]/g, "");
+  return normalizeText(value).replace(/[^\d]/g, "");
 }
 
 function toMoney(value, digits) {

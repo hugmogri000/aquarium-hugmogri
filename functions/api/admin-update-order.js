@@ -4,7 +4,7 @@ import { getOrderById, updateOrderLogistics } from "../_lib/orders.js";
 export async function onRequestPost(context) {
   const adminToken = String(context.env.ADMIN_API_TOKEN || "").trim();
   if (!adminToken) {
-    return errorJson("ADMIN_API_TOKEN 尚未配置。", 500);
+    return errorJson("ADMIN_API_TOKEN 未配置。", 500);
   }
 
   const authHeader = String(context.request.headers.get("Authorization") || "");
@@ -13,7 +13,7 @@ export async function onRequestPost(context) {
   }
 
   if (!context.env.DB) {
-    return errorJson("订单数据库尚未绑定。", 500);
+    return errorJson("订单数据库未绑定。", 500);
   }
 
   const body = await readJson(context.request);

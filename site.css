@@ -836,6 +836,71 @@ h2 {
   background: rgba(251, 253, 254, 0.92);
 }
 
+.admin-body {
+  min-height: 100vh;
+}
+
+.admin-shell {
+  width: min(1120px, calc(100% - 32px));
+  margin: 0 auto;
+  padding: 40px 0 64px;
+  display: grid;
+  gap: 20px;
+}
+
+.admin-header h1 {
+  margin-top: 10px;
+}
+
+.admin-panel {
+  padding: 20px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.92);
+  box-shadow: var(--shadow);
+}
+
+.admin-filter {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+  align-items: end;
+}
+
+.admin-filter select {
+  width: 100%;
+  min-height: 44px;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #ffffff;
+  color: var(--ink);
+  font: inherit;
+}
+
+.admin-list {
+  display: grid;
+  gap: 16px;
+}
+
+.admin-order-card {
+  display: grid;
+  gap: 16px;
+}
+
+.admin-waybill-form {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto;
+  gap: 12px;
+  align-items: end;
+}
+
+.payment-form-alert.is-success {
+  border-color: rgba(16, 125, 81, 0.22);
+  background: #f2fcf7;
+  color: #0f6b47;
+}
+
 @media (max-width: 1024px) {
   .header-row,
   .footer-row,
@@ -1049,7 +1114,9 @@ h2 {
 
   .customer-grid,
   .payment-copy-grid,
-  .lookup-grid {
+  .lookup-grid,
+  .admin-filter,
+  .admin-waybill-form {
     grid-template-columns: 1fr;
   }
 }

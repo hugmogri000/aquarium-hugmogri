@@ -1,7 +1,6 @@
 (function () {
   const API = {
     createOrder: "/api/create-order",
-    checkPayment: "/api/check-payment",
     lookupOrder: "/api/order-lookup",
   };
 
@@ -14,22 +13,26 @@
       usa: 150,
       australia: 100,
     },
+    displayRange: {
+      usa: "206.0-207.9 USDT",
+      australia: "156.0-157.9 USDT",
+    },
     receivingAddress: "TAVdxDuCmXGHnvcHsamw68mTUXSkD8Pp7d",
-    paymentTip: "请务必按下方精确金额原样支付，系统会用订单号和精确到账金额识别订单。",
+    paymentTip: "Pay the exact amount shown below. Each order is matched by its dedicated amount.",
   };
 
   const copy = {
     bucketColor: {
-      white: "白色",
-      lightBlue: "浅蓝色",
+      white: "White",
+      lightBlue: "Light blue",
     },
     standColor: {
-      white: "白色",
-      black: "黑色",
+      white: "White",
+      black: "Black",
     },
     country: {
-      usa: "美国",
-      australia: "澳大利亚",
+      usa: "USA",
+      australia: "Australia",
     },
   };
 
@@ -53,6 +56,7 @@
   const paymentProductPrice = paymentModal.querySelector("[data-product-price]");
   const paymentShippingPrice = paymentModal.querySelector("[data-shipping-price]");
   const paymentTotalPrice = paymentModal.querySelector("[data-total-price]");
+  const paymentPriceRange = paymentModal.querySelector("[data-price-range]");
   const paymentFormAlert = paymentModal.querySelector("[data-form-alert]");
   const paymentSubmitButton = paymentForm.querySelector('button[type="submit"]');
   const paymentOptionGroups = {
@@ -104,7 +108,7 @@
   });
 
   paymentModal.addEventListener("change", (event) => {
-    if (event.target.name === "bucketColor" || event.target.name === "standColor" || event.target.name === "country") {
+    if (["bucketColor", "standColor", "country"].includes(event.target.name)) {
       updatePaymentSummary();
       clearPaymentValidationState();
     }
@@ -122,34 +126,28 @@
     });
   });
 
-  paymentForm.addEventListener("submit", (event) => {
+  paymentForm.addEventListener("submit", async (event) => {
     event.preventDefault();
-    createOrderAndShowPayment();
+    await createOrderAndShowPayment();
   });
 
   paymentCopyButtons.forEach((button) => {
-    button.addEventListener("click", () => {
-      handlePaymentCopy(button.dataset.copyField || "");
-    });
+    button.addEventListener("click", () => handlePaymentCopy(button.dataset.copyField || ""));
   });
 
-  lookupForm.addEventListener("submit", (event) => {
+  lookupForm.addEventListener("submit", async (event) => {
     event.preventDefault();
-    lookupOrders();
+    await lookupOrders();
   });
 
   paidButton.addEventListener("click", closePaymentModal);
 
   document.addEventListener("keydown", (event) => {
-    if (event.key !== "Escape") {
-      return;
-    }
-
+    if (event.key !== "Escape") return;
     if (!paymentModal.hidden) {
       closePaymentModal();
       return;
     }
-
     if (!lookupModal.hidden) {
       closeLookupModal();
     }
@@ -160,9 +158,6 @@
     paymentModal.hidden = false;
     document.body.classList.add("modal-lock");
     updatePaymentSummary();
-    window.setTimeout(() => {
-      paymentModal.querySelector('input[name="bucketColor"]').focus();
-    }, 0);
   }
 
   function closePaymentModal() {
@@ -176,9 +171,6 @@
     resetLookupState();
     lookupModal.hidden = false;
     document.body.classList.add("modal-lock");
-    window.setTimeout(() => {
-      lookupModal.querySelector('input[name="lookupPhone"]').focus();
-    }, 0);
   }
 
   function closeLookupModal() {
@@ -195,7 +187,7 @@
     currentOrder = null;
     paymentResult.hidden = true;
     paymentNote.textContent = "";
-    paymentStatus.textContent = "请先选择款式并填写客户信息，然后生成专属支付金额。";
+    paymentStatus.textContent = "Select options and fill in customer information first.";
     clearPaymentValidationState();
     setPaymentSubmitState(false);
     updatePaymentSummary();
@@ -214,15 +206,10 @@
   function clearPaymentValidationState() {
     paymentFormAlert.hidden = true;
     paymentFormAlert.textContent = "";
-
-    Object.values(paymentOptionGroups).forEach((group) => {
-      group.classList.remove("is-error");
-    });
-
+    Object.values(paymentOptionGroups).forEach((group) => group.classList.remove("is-error"));
     paymentCustomerFields.forEach((field) => {
       field.classList.remove("is-error");
-      const input = field.querySelector("input");
-      input.removeAttribute("aria-invalid");
+      field.querySelector("input").removeAttribute("aria-invalid");
     });
   }
 
@@ -231,23 +218,14 @@
     const hasColors = Boolean(selections.bucketColor && selections.standColor);
     const hasCountry = Boolean(selections.country);
     const shipping = hasCountry ? getShippingUsd(selections.country) : null;
-    const total = hasColors && hasCountry ? PAYMENT_CONFIG.productPriceUsd + shipping : null;
+    const total = hasCountry ? PAYMENT_CONFIG.productPriceUsd + shipping : null;
 
-    paymentChoice.textContent = hasColors
-      ? buildChoiceText(selections)
-      : "请选择水桶颜色和支架颜色";
-    paymentCountrySummary.textContent = hasCountry
-      ? copy.country[selections.country]
-      : "请选择国家";
-    paymentProductPrice.textContent = hasColors
-      ? `${PAYMENT_CONFIG.productPriceUsd} 美元`
-      : "--";
-    paymentShippingPrice.textContent = hasCountry
-      ? `${shipping} 美元`
-      : "--";
-    paymentTotalPrice.textContent = total === null
-      ? "--"
-      : `${total} USDT`;
+    paymentChoice.textContent = hasColors ? buildChoiceText(selections) : "Choose bucket and stand color";
+    paymentCountrySummary.textContent = hasCountry ? copy.country[selections.country] : "Choose country";
+    paymentProductPrice.textContent = `${PAYMENT_CONFIG.productPriceUsd} USD`;
+    paymentShippingPrice.textContent = hasCountry ? `${shipping} USD` : "--";
+    paymentTotalPrice.textContent = total === null ? "--" : `${total} USD`;
+    paymentPriceRange.textContent = hasCountry ? PAYMENT_CONFIG.displayRange[selections.country] : "--";
   }
 
   async function createOrderAndShowPayment() {
@@ -261,7 +239,6 @@
     }
 
     setPaymentSubmitState(true);
-
     try {
       const payload = {
         ...getSelections(),
@@ -269,9 +246,7 @@
       };
       const response = await fetchJson(API.createOrder, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json; charset=utf-8",
-        },
+        headers: { "Content-Type": "application/json; charset=utf-8" },
         body: JSON.stringify(payload),
       });
 
@@ -283,7 +258,7 @@
       paymentResult.scrollIntoView({ block: "nearest", behavior: "smooth" });
     } catch (error) {
       paymentFormAlert.hidden = false;
-      paymentFormAlert.textContent = getErrorMessage(error, "创建订单失败，请稍后重试。");
+      paymentFormAlert.textContent = getErrorMessage(error, "Failed to create order.");
       paymentResult.hidden = true;
     } finally {
       setPaymentSubmitState(false);
@@ -297,36 +272,35 @@
     paymentResultFields.customerName.textContent = order.customer.name;
     paymentResultFields.customerContact.textContent = `${order.customer.phone} / ${order.customer.email}`;
     paymentResultFields.shippingAddress.textContent = formatShippingAddress(order.customer);
-    paymentResultFields.baseAmount.textContent = `${order.payment.baseAmountUsd} 美元`;
+    paymentResultFields.baseAmount.textContent = `${order.payment.baseAmountUsd} USD`;
     paymentResultFields.paymentAmount.textContent = `${order.payment.payableAmountUsdt} ${order.payment.currency}`;
     paymentResultFields.paymentAddress.textContent = order.payment.receivingAddress;
-    paymentResultFields.paymentState.textContent = order.paymentStatusText || order.paymentStatus || "待支付";
-    paymentResultFields.paymentTxId.textContent = order.paymentTxId || "待确认";
-    paymentNote.textContent = `${PAYMENT_CONFIG.paymentTip} 产品与运费参考价为 ${order.payment.baseAmountUsd} 美元，当前专属支付金额为 ${order.payment.payableAmountUsdt} ${order.payment.currency}。`;
-    paymentStatus.textContent = "请复制金额和付款地址完成转账，付款完成后可通过“查询订单”查看支付状态。";
+    paymentResultFields.paymentState.textContent = order.paymentStatusText || order.paymentStatus || "Pending";
+    paymentResultFields.paymentTxId.textContent = order.paymentTxId || "";
+    paymentNote.textContent = `${PAYMENT_CONFIG.paymentTip} Base price is ${order.payment.baseAmountUsd} USD. Your dedicated payment amount is ${order.payment.payableAmountUsdt} ${order.payment.currency}.`;
+    paymentStatus.textContent = "Copy the payment amount and wallet address, complete the transfer, then click I have paid.";
   }
 
   function validatePaymentForm() {
     clearPaymentValidationState();
-
     const selections = getSelections();
     const issues = [];
     let focusTarget = null;
 
     if (!selections.bucketColor) {
-      issues.push("水桶颜色");
+      issues.push("bucket color");
       paymentOptionGroups.bucketColor.classList.add("is-error");
       focusTarget = focusTarget || paymentModal.querySelector('input[name="bucketColor"]');
     }
 
     if (!selections.standColor) {
-      issues.push("支架颜色");
+      issues.push("stand color");
       paymentOptionGroups.standColor.classList.add("is-error");
       focusTarget = focusTarget || paymentModal.querySelector('input[name="standColor"]');
     }
 
     if (!selections.country) {
-      issues.push("国家");
+      issues.push("country");
       paymentOptionGroups.country.classList.add("is-error");
       focusTarget = focusTarget || paymentModal.querySelector('input[name="country"]');
     }
@@ -345,7 +319,7 @@
       }
 
       if (!input.checkValidity()) {
-        issues.push(`${label}格式不正确`);
+        issues.push(`${label} format`);
         field.classList.add("is-error");
         input.setAttribute("aria-invalid", "true");
         focusTarget = focusTarget || input;
@@ -353,40 +327,33 @@
     });
 
     if (!issues.length) {
-      return {
-        valid: true,
-        message: "",
-        focusTarget: null,
-      };
+      return { valid: true, message: "", focusTarget: null };
     }
 
     return {
       valid: false,
-      message: `请先填写或选择：${issues.join("、")}`,
+      message: `Please complete: ${issues.join(", ")}`,
       focusTarget,
     };
   }
 
   function hasPaymentValidationIssues() {
-    return Boolean(
-      paymentModal.querySelector(".option-group.is-error") ||
-      paymentModal.querySelector(".customer-field.is-error")
-    );
+    return Boolean(paymentModal.querySelector(".option-group.is-error, .customer-field.is-error"));
   }
 
   async function handlePaymentCopy(type) {
     if (!currentOrder) {
-      paymentStatus.textContent = "请先生成支付信息。";
+      paymentStatus.textContent = "Generate payment information first.";
       return;
     }
 
     if (type === "amount") {
-      await copyText(currentOrder.payment.payableAmountUsdt, "支付金额已复制。");
+      await copyText(currentOrder.payment.payableAmountUsdt, "Payment amount copied.");
       return;
     }
 
     if (type === "address") {
-      await copyText(currentOrder.payment.receivingAddress, "付款地址已复制。");
+      await copyText(currentOrder.payment.receivingAddress, "Payment address copied.");
     }
   }
 
@@ -396,7 +363,7 @@
 
     if (!phone) {
       lookupAlert.hidden = false;
-      lookupAlert.textContent = "请填写手机号。";
+      lookupAlert.textContent = "Phone is required.";
       phoneInput.focus();
       return;
     }
@@ -411,14 +378,11 @@
     try {
       const query = new URLSearchParams();
       query.set("phone", phone);
-
-      const response = await fetchJson(`${API.lookupOrder}?${query.toString()}`, {
-        method: "GET",
-      });
+      const response = await fetchJson(`${API.lookupOrder}?${query.toString()}`, { method: "GET" });
       renderLookupResults(Array.isArray(response.orders) ? response.orders : []);
     } catch (error) {
       lookupAlert.hidden = false;
-      lookupAlert.textContent = getErrorMessage(error, "查询订单失败，请稍后重试。");
+      lookupAlert.textContent = getErrorMessage(error, "Failed to load orders.");
     } finally {
       setLookupSubmitState(false);
     }
@@ -430,7 +394,7 @@
 
     if (!orders.length) {
       lookupEmpty.hidden = false;
-      lookupEmpty.textContent = "未查询到匹配的订单。";
+      lookupEmpty.textContent = "No matching orders found.";
       return;
     }
 
@@ -445,12 +409,12 @@
 
   function setPaymentSubmitState(isLoading) {
     paymentSubmitButton.disabled = isLoading;
-    paymentSubmitButton.textContent = isLoading ? "生成支付信息中..." : "立即支付";
+    paymentSubmitButton.textContent = isLoading ? "Creating..." : "Pay now";
   }
 
   function setLookupSubmitState(isLoading) {
     lookupSubmitButton.disabled = isLoading;
-    lookupSubmitButton.textContent = isLoading ? "查询中..." : "立即查询";
+    lookupSubmitButton.textContent = isLoading ? "Loading..." : "Search order";
   }
 
   function getSelections() {
@@ -481,16 +445,16 @@
   }
 
   function buildChoiceText(values) {
-    return `水桶${copy.bucketColor[values.bucketColor]} / 支架${copy.standColor[values.standColor]}`;
+    return `Bucket ${copy.bucketColor[values.bucketColor]} / Stand ${copy.standColor[values.standColor]}`;
   }
 
   function formatShippingAddress(customer) {
     return [
       `${customer.state} ${customer.city}`,
       customer.streetAddress,
-      `门牌号: ${customer.unitNumber}`,
-      `邮编: ${customer.postalCode}`,
-    ].join("，");
+      `Unit ${customer.unitNumber}`,
+      `Postal ${customer.postalCode}`,
+    ].join(", ");
   }
 
   async function copyText(value, successMessage) {
@@ -501,7 +465,7 @@
         fallbackCopyText(value);
       }
       paymentStatus.textContent = successMessage;
-    } catch (error) {
+    } catch {
       fallbackCopyText(value);
       paymentStatus.textContent = successMessage;
     }
@@ -544,7 +508,7 @@
     const trackingHtml = buildTrackingHtml(order.logistics && order.logistics.tracking);
     const waybillNumber = order.logistics && order.logistics.waybillNumber
       ? escapeHtml(order.logistics.waybillNumber)
-      : "未录入";
+      : "No waybill";
 
     return `
       <div class="lookup-order-head">
@@ -552,52 +516,25 @@
           <h3>${escapeHtml(order.id)}</h3>
           <p>${escapeHtml(order.createdAt || "")}</p>
         </div>
-        <strong class="lookup-order-state">${escapeHtml(order.paymentStatusText || "待支付")}</strong>
+        <strong class="lookup-order-state">${escapeHtml(order.paymentStatusText || "Pending")}</strong>
       </div>
 
       <dl class="payment-detail lookup-order-detail">
-        <div>
-          <dt>款式</dt>
-          <dd>${escapeHtml(order.selectionText)}</dd>
-        </div>
-        <div>
-          <dt>国家</dt>
-          <dd>${escapeHtml(order.countryText)}</dd>
-        </div>
-        <div>
-          <dt>客户</dt>
-          <dd>${escapeHtml(order.customer.name)}</dd>
-        </div>
-        <div>
-          <dt>联系方式</dt>
-          <dd>${escapeHtml(`${order.customer.phone} / ${order.customer.email}`)}</dd>
-        </div>
-        <div>
-          <dt>收货地址</dt>
-          <dd>${escapeHtml(formatShippingAddress(order.customer))}</dd>
-        </div>
-        <div>
-          <dt>产品与运费</dt>
-          <dd>${escapeHtml(`${order.payment.baseAmountUsd} 美元`)}</dd>
-        </div>
-        <div>
-          <dt>支付金额</dt>
-          <dd>${escapeHtml(`${order.payment.payableAmountUsdt} ${order.payment.currency}`)}</dd>
-        </div>
-        <div>
-          <dt>付款地址</dt>
-          <dd>${escapeHtml(order.payment.receivingAddress)}</dd>
-        </div>
-        <div>
-          <dt>交易哈希</dt>
-          <dd>${escapeHtml(order.paymentTxId || "待确认")}</dd>
-        </div>
+        <div><dt>Options</dt><dd>${escapeHtml(order.selectionText)}</dd></div>
+        <div><dt>Country</dt><dd>${escapeHtml(order.countryText)}</dd></div>
+        <div><dt>Customer</dt><dd>${escapeHtml(order.customer.name)}</dd></div>
+        <div><dt>Contact</dt><dd>${escapeHtml(`${order.customer.phone} / ${order.customer.email}`)}</dd></div>
+        <div><dt>Address</dt><dd>${escapeHtml(formatShippingAddress(order.customer))}</dd></div>
+        <div><dt>Base price</dt><dd>${escapeHtml(`${order.payment.baseAmountUsd} USD`)}</dd></div>
+        <div><dt>Payable</dt><dd>${escapeHtml(`${order.payment.payableAmountUsdt} ${order.payment.currency}`)}</dd></div>
+        <div><dt>Wallet</dt><dd>${escapeHtml(order.payment.receivingAddress)}</dd></div>
+        <div><dt>Tx hash</dt><dd>${escapeHtml(order.paymentTxId || "")}</dd></div>
       </dl>
 
       <section class="lookup-tracking">
         <div class="lookup-tracking-head">
-          <strong>物流信息</strong>
-          <span>物流单号：${waybillNumber}</span>
+          <strong>Tracking</strong>
+          <span>${waybillNumber}</span>
         </div>
         ${trackingHtml}
       </section>
@@ -606,21 +543,16 @@
 
   function buildTrackingHtml(tracking) {
     if (!tracking || !tracking.available || !Array.isArray(tracking.checkpoints) || !tracking.checkpoints.length) {
-      return `<p class="lookup-tracking-empty">暂无物流轨迹</p>`;
+      return `<p class="lookup-tracking-empty">No tracking yet.</p>`;
     }
 
     const items = tracking.checkpoints
-      .map((checkpoint) => {
-        const line = checkpoint.location
-          ? `${checkpoint.message} | ${checkpoint.location}`
-          : checkpoint.message;
-        return `
-          <li class="lookup-tracking-item">
-            <strong>${escapeHtml(checkpoint.time)}</strong>
-            <span>${escapeHtml(line)}</span>
-          </li>
-        `;
-      })
+      .map((checkpoint) => `
+        <li class="lookup-tracking-item">
+          <strong>${escapeHtml(checkpoint.time || "")}</strong>
+          <span>${escapeHtml(checkpoint.message || "")}</span>
+        </li>
+      `)
       .join("");
 
     return `<ol class="lookup-tracking-list">${items}</ol>`;
@@ -644,166 +576,88 @@
       <div class="payment-dialog" role="dialog" aria-modal="true" aria-labelledby="payment-title">
         <div class="payment-dialog-header">
           <div>
-            <h2 id="payment-title">购买 Eco Bucket Aquarium</h2>
-            <p>先选择款式并填写客户信息</p>
+            <h2 id="payment-title">Buy Eco Bucket Aquarium</h2>
+            <p>Select options and fill in customer information first.</p>
           </div>
-          <button class="modal-close" type="button" data-close-payment aria-label="Close purchase dialog">×</button>
+          <button class="modal-close" type="button" data-close-payment aria-label="Close purchase dialog">x</button>
         </div>
 
         <form class="payment-form" data-payment-form autocomplete="off" novalidate>
           <fieldset class="option-group" data-option-group="bucketColor">
-            <legend>水桶颜色</legend>
+            <legend>Bucket color</legend>
             <div class="option-grid">
-              <label class="option-card">
-                <input type="radio" name="bucketColor" value="white">
-                <span>白色</span>
-              </label>
-              <label class="option-card">
-                <input type="radio" name="bucketColor" value="lightBlue">
-                <span>浅蓝色</span>
-              </label>
+              <label class="option-card"><input type="radio" name="bucketColor" value="white"><span>White</span></label>
+              <label class="option-card"><input type="radio" name="bucketColor" value="lightBlue"><span>Light blue</span></label>
             </div>
           </fieldset>
 
           <fieldset class="option-group" data-option-group="standColor">
-            <legend>支架颜色</legend>
+            <legend>Stand color</legend>
             <div class="option-grid">
-              <label class="option-card">
-                <input type="radio" name="standColor" value="white">
-                <span>白色</span>
-              </label>
-              <label class="option-card">
-                <input type="radio" name="standColor" value="black">
-                <span>黑色</span>
-              </label>
+              <label class="option-card"><input type="radio" name="standColor" value="white"><span>White</span></label>
+              <label class="option-card"><input type="radio" name="standColor" value="black"><span>Black</span></label>
             </div>
           </fieldset>
 
           <fieldset class="option-group" data-option-group="country">
-            <legend>国家</legend>
+            <legend>Country</legend>
             <div class="option-grid">
-              <label class="option-card">
-                <input type="radio" name="country" value="usa">
-                <span>美国</span>
-              </label>
-              <label class="option-card">
-                <input type="radio" name="country" value="australia">
-                <span>澳大利亚</span>
-              </label>
+              <label class="option-card"><input type="radio" name="country" value="usa"><span>USA</span></label>
+              <label class="option-card"><input type="radio" name="country" value="australia"><span>Australia</span></label>
             </div>
           </fieldset>
 
           <section class="customer-section" aria-labelledby="customer-info-title">
-            <h3 id="customer-info-title" class="customer-section-title">用户信息</h3>
+            <h3 id="customer-info-title" class="customer-section-title">Customer information</h3>
             <div class="customer-grid">
-              <label class="customer-field">
-                <span>名字</span>
-                <input type="text" name="customerName" autocomplete="off" required>
-              </label>
-              <label class="customer-field">
-                <span>邮编</span>
-                <input type="text" name="postalCode" autocomplete="off" required>
-              </label>
-              <label class="customer-field">
-                <span>邮箱</span>
-                <input type="email" name="email" autocomplete="off" inputmode="email" required>
-              </label>
-              <label class="customer-field">
-                <span>电话</span>
-                <input type="tel" name="phone" autocomplete="off" inputmode="tel" required>
-              </label>
-              <label class="customer-field">
-                <span>省 / 州</span>
-                <input type="text" name="state" autocomplete="off" required>
-              </label>
-              <label class="customer-field">
-                <span>城市</span>
-                <input type="text" name="city" autocomplete="off" required>
-              </label>
-              <label class="customer-field full">
-                <span>具体地址</span>
-                <input type="text" name="streetAddress" autocomplete="off" required>
-              </label>
-              <label class="customer-field full">
-                <span>门牌号</span>
-                <input type="text" name="unitNumber" autocomplete="off" required>
-              </label>
+              <label class="customer-field"><span>Name</span><input type="text" name="customerName" required></label>
+              <label class="customer-field"><span>Postal code</span><input type="text" name="postalCode" required></label>
+              <label class="customer-field"><span>Email</span><input type="email" name="email" inputmode="email" required></label>
+              <label class="customer-field"><span>Phone</span><input type="tel" name="phone" inputmode="tel" required></label>
+              <label class="customer-field"><span>State / Province</span><input type="text" name="state" required></label>
+              <label class="customer-field"><span>City</span><input type="text" name="city" required></label>
+              <label class="customer-field full"><span>Street address</span><input type="text" name="streetAddress" required></label>
+              <label class="customer-field full"><span>Unit number</span><input type="text" name="unitNumber" required></label>
             </div>
           </section>
 
           <div class="order-summary" aria-live="polite">
-            <span>当前选择：<strong data-order-choice>请选择水桶颜色和支架颜色</strong></span>
-            <span>国家：<strong data-order-country>请选择国家</strong></span>
-            <span>产品价格：<strong data-product-price>--</strong></span>
-            <span>运费：<strong data-shipping-price>--</strong></span>
-            <span>支付价格：<strong data-total-price>--</strong></span>
+            <span>Selection: <strong data-order-choice>Choose bucket and stand color</strong></span>
+            <span>Country: <strong data-order-country>Choose country</strong></span>
+            <span>Product price: <strong data-product-price>58 USD</strong></span>
+            <span>Shipping: <strong data-shipping-price>--</strong></span>
+            <span>Base total: <strong data-total-price>--</strong></span>
+            <span>Payment range: <strong data-price-range>--</strong></span>
           </div>
 
           <p class="payment-form-alert" data-form-alert hidden></p>
-          <button class="button" type="submit">立即支付</button>
+          <button class="button" type="submit">Pay now</button>
         </form>
 
         <div class="payment-result" data-payment-result hidden>
           <div class="payment-panel">
-            <h3>虚拟货币支付</h3>
+            <h3>Crypto payment</h3>
             <p class="payment-note" data-payment-note></p>
-
             <dl class="payment-detail">
-              <div>
-                <dt>订单号</dt>
-                <dd data-order-id></dd>
-              </div>
-              <div>
-                <dt>款式</dt>
-                <dd data-order-options></dd>
-              </div>
-              <div>
-                <dt>国家</dt>
-                <dd data-order-country-result></dd>
-              </div>
-              <div>
-                <dt>客户</dt>
-                <dd data-customer-name></dd>
-              </div>
-              <div>
-                <dt>联系方式</dt>
-                <dd data-customer-contact></dd>
-              </div>
-              <div>
-                <dt>收货地址</dt>
-                <dd data-shipping-address></dd>
-              </div>
-              <div>
-                <dt>产品与运费</dt>
-                <dd data-base-amount></dd>
-              </div>
-              <div>
-                <dt>支付金额</dt>
-                <dd data-payment-amount></dd>
-              </div>
-              <div>
-                <dt>付款地址</dt>
-                <dd data-payment-address></dd>
-              </div>
-              <div>
-                <dt>支付状态</dt>
-                <dd data-payment-state></dd>
-              </div>
-              <div>
-                <dt>交易哈希</dt>
-                <dd data-payment-txid></dd>
-              </div>
+              <div><dt>Order ID</dt><dd data-order-id></dd></div>
+              <div><dt>Options</dt><dd data-order-options></dd></div>
+              <div><dt>Country</dt><dd data-order-country-result></dd></div>
+              <div><dt>Customer</dt><dd data-customer-name></dd></div>
+              <div><dt>Contact</dt><dd data-customer-contact></dd></div>
+              <div><dt>Address</dt><dd data-shipping-address></dd></div>
+              <div><dt>Base price</dt><dd data-base-amount></dd></div>
+              <div><dt>Payable amount</dt><dd data-payment-amount></dd></div>
+              <div><dt>Payment address</dt><dd data-payment-address></dd></div>
+              <div><dt>Payment state</dt><dd data-payment-state></dd></div>
+              <div><dt>Tx hash</dt><dd data-payment-txid></dd></div>
             </dl>
-
             <div class="payment-copy-grid">
-              <button class="button ghost small" type="button" data-copy-field="amount">复制金额</button>
-              <button class="button ghost small" type="button" data-copy-field="address">复制付款地址</button>
+              <button class="button ghost small" type="button" data-copy-field="amount">Copy amount</button>
+              <button class="button ghost small" type="button" data-copy-field="address">Copy payment address</button>
             </div>
-
-            <p class="payment-status" data-payment-status>请先选择款式并填写客户信息，然后生成专属支付金额。</p>
-
+            <p class="payment-status" data-payment-status>Select options and fill in customer information first.</p>
             <div class="payment-actions">
-              <button class="button" type="button" data-confirm-paid>我已支付</button>
+              <button class="button" type="button" data-confirm-paid>I have paid</button>
             </div>
           </div>
         </div>
@@ -821,22 +675,21 @@
       <div class="payment-dialog payment-dialog-wide" role="dialog" aria-modal="true" aria-labelledby="lookup-title">
         <div class="payment-dialog-header">
           <div>
-            <h2 id="lookup-title">查询订单</h2>
-            <p>填写手机号，查询订单信息和物流信息</p>
+            <h2 id="lookup-title">Search order</h2>
+            <p>Enter your phone number to view payment and logistics information.</p>
           </div>
-          <button class="modal-close" type="button" data-close-lookup aria-label="Close order lookup dialog">×</button>
+          <button class="modal-close" type="button" data-close-lookup aria-label="Close order lookup dialog">x</button>
         </div>
 
         <form class="payment-form lookup-form" data-lookup-form autocomplete="off" novalidate>
           <div class="customer-grid lookup-grid">
             <label class="customer-field">
-              <span>手机号</span>
-              <input type="tel" name="lookupPhone" autocomplete="off" inputmode="tel">
+              <span>Phone</span>
+              <input type="tel" name="lookupPhone" inputmode="tel">
             </label>
           </div>
-
           <p class="payment-form-alert" data-lookup-alert hidden></p>
-          <button class="button" type="submit">立即查询</button>
+          <button class="button" type="submit">Search order</button>
         </form>
 
         <div class="payment-result lookup-results" data-lookup-results hidden>

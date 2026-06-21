@@ -3,7 +3,7 @@ import { createOrder, serializeOrder, validateOrderPayload } from "../_lib/order
 
 export async function onRequestPost(context) {
   if (!context.env.DB) {
-    return errorJson("订单数据库尚未绑定。请先在 Cloudflare Pages 绑定 D1 数据库。", 500);
+    return errorJson("Order database is not configured. Bind D1 as DB first.", 500);
   }
 
   const body = await readJson(context.request);
@@ -13,12 +13,12 @@ export async function onRequestPost(context) {
   }
 
   try {
-    const order = await createOrder(context.env.DB, validation.value);
+    const order = await createOrder(context.env.DB, validation.value, context.env);
     return json({
       success: true,
       order: serializeOrder(order),
     });
   } catch (error) {
-    return errorJson(error instanceof Error ? error.message : "创建订单失败。", 500);
+    return errorJson(error instanceof Error ? error.message : "Failed to create order.", 500);
   }
 }

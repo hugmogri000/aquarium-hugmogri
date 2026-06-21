@@ -5,14 +5,14 @@ import { refreshOrderPaymentStatus } from "../_lib/tron.js";
 
 export async function onRequestGet(context) {
   if (!context.env.DB) {
-    return errorJson("订单数据库尚未绑定。请先在 Cloudflare Pages 绑定 D1 数据库。", 500);
+    return errorJson("Order database is not configured. Bind D1 as DB first.", 500);
   }
 
   const url = new URL(context.request.url);
   const phone = url.searchParams.get("phone") || "";
 
   if (!phone) {
-    return errorJson("请填写手机号。", 400);
+    return errorJson("Phone is required.", 400);
   }
 
   try {
@@ -57,7 +57,7 @@ export async function onRequestGet(context) {
       orders: enriched,
     });
   } catch (error) {
-    return errorJson(error instanceof Error ? error.message : "查询订单失败。", 500);
+    return errorJson(error instanceof Error ? error.message : "Failed to look up orders.", 500);
   }
 }
 

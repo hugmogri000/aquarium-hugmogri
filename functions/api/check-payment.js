@@ -5,19 +5,19 @@ import { checkOrderPaymentById } from "../_lib/tron.js";
 
 export async function onRequestGet(context) {
   if (!context.env.DB) {
-    return errorJson("订单数据库尚未绑定。请先在 Cloudflare Pages 绑定 D1 数据库。", 500);
+    return errorJson("Order database is not configured. Bind D1 as DB first.", 500);
   }
 
   const url = new URL(context.request.url);
   const orderId = String(url.searchParams.get("orderId") || "").trim();
   if (!orderId) {
-    return errorJson("缺少 orderId。", 400);
+    return errorJson("Missing orderId.", 400);
   }
 
   try {
     const payment = await checkOrderPaymentById(context.env, orderId);
     if (!payment.order) {
-      return errorJson("订单不存在。", 404, {
+      return errorJson("Order not found.", 404, {
         configured: Boolean(context.env.TRON_API_KEY),
         paid: false,
         status: "not_found",
@@ -44,7 +44,7 @@ export async function onRequestGet(context) {
       message: buildMessage(payment.status),
     });
   } catch (error) {
-    return errorJson(error instanceof Error ? error.message : "支付查询失败。", 502, {
+    return errorJson(error instanceof Error ? error.message : "Payment status check failed.", 502, {
       configured: Boolean(context.env.TRON_API_KEY),
       paid: false,
       status: "check_failed",
@@ -55,12 +55,12 @@ export async function onRequestGet(context) {
 function buildMessage(status) {
   switch (status) {
     case "paid":
-      return "支付已确认。";
+      return "Payment confirmed.";
     case "not_configured":
-      return "TRON_API_KEY 尚未配置。";
+      return "TRON_API_KEY is not configured.";
     case "pending":
-      return "暂未查询到该订单对应的到账记录。";
+      return "No matching payment has been found yet.";
     default:
-      return "支付状态查询完成。";
+      return "Payment status checked.";
   }
 }
