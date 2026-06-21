@@ -19,6 +19,33 @@ const types = {
 
 const server = http.createServer((req, res) => {
   const url = new URL(req.url, `http://${req.headers.host || "127.0.0.1"}`);
+
+  if (url.pathname === "/api/check-payment") {
+    const preview = (url.searchParams.get("preview") || "").toLowerCase();
+    const status =
+      preview === "paid"
+        ? {
+            configured: true,
+            paid: true,
+            status: "paid",
+            txId: "preview-transaction",
+            message: "预览模式：支付已确认。",
+          }
+        : {
+            configured: true,
+            paid: false,
+            status: "pending",
+            message: "预览模式：暂未查询到到账记录。可在地址栏添加 ?payment=paid 模拟支付成功。",
+          };
+
+    res.writeHead(200, {
+      "Content-Type": "application/json; charset=utf-8",
+      "Cache-Control": "no-store",
+    });
+    res.end(JSON.stringify(status));
+    return;
+  }
+
   const requested = decodeURIComponent(url.pathname === "/" ? "/index.html" : url.pathname);
   const filePath = path.resolve(root, `.${requested}`);
 

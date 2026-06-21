@@ -93,3 +93,8 @@ Then open:
 ```text
 http://127.0.0.1:4190/
 ```
+
+Local payment status preview:
+
+- Pending preview: `http://127.0.0.1:4190/`
+- Paid preview: `http://127.0.0.1:4190/?payment=paid`

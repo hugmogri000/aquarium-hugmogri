@@ -130,6 +130,12 @@ img {
   font-weight: 700;
 }
 
+.button.small {
+  min-height: 40px;
+  padding: 9px 14px;
+  font-size: 0.92rem;
+}
+
 .icon-button {
   width: 52px;
   min-width: 52px;
@@ -580,6 +586,15 @@ h2 {
   font-size: 1.08rem;
 }
 
+.payment-note,
+.payment-qr-caption,
+.payment-preview-hint {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.92rem;
+  line-height: 1.55;
+}
+
 .payment-detail {
   margin: 0;
   display: grid;
@@ -604,6 +619,17 @@ h2 {
   font-size: 0.94rem;
   font-weight: 800;
   overflow-wrap: anywhere;
+}
+
+.payment-copy-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.payment-qr-wrap {
+  display: grid;
+  gap: 10px;
 }
 
 .payment-qr {
@@ -632,6 +658,8 @@ h2 {
 }
 
 .payment-link {
+  display: inline-flex;
+  justify-content: center;
   color: var(--accent);
   font-weight: 800;
   overflow-wrap: anywhere;
@@ -867,6 +895,10 @@ h2 {
   .payment-result {
     padding-left: 16px;
     padding-right: 16px;
+  }
+
+  .payment-copy-grid {
+    grid-template-columns: 1fr;
   }
 }
 
