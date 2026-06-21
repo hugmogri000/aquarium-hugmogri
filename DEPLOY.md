@@ -32,7 +32,7 @@ This is the simplest option for US and Australia visitors because Cloudflare wil
 
 The purchase modal is wired in `payment.js`. Before publishing real payments, update the `PAYMENT_CONFIG` values:
 
-- `amount`
+- `baseAmount`
 - `receivingAddress`
 - `paymentLink` or `qrImageUrl`
 
@@ -44,10 +44,10 @@ For Cloudflare Pages, the payment status endpoint is prepared at:
 
 Set these Pages environment variables after you provide the TRON payment query API:
 
-- `TRON_PAYMENT_API_URL`
-- `TRON_PAYMENT_API_KEY` if the API requires a token
+- `TRON_API_KEY`
 
-The function currently normalizes API responses that include `paid: true`, `status: "paid"`, or `status: "success"`.
+The payment function now queries `TronGrid` directly for incoming `TRC20-USDT` transfers to the configured wallet.
+The frontend generates a unique `invoiceAmount` from `baseAmount + unique tail`, so each order can be matched by exact amount even when one wallet address is reused.
 
 ## Alternative: Tencent Light Application Server + Cloudflare
 

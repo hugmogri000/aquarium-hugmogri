@@ -3,7 +3,7 @@
     productName: "Eco Bucket Aquarium",
     network: "TRON / TRC20-USDT",
     currency: "USDT",
-    amount: "请填写金额",
+    baseAmount: "50.000",
     receivingAddress: "TAVdxDuCmXGHnvcHsamw68mTUXSkD8Pp7d",
     paymentLink: "",
     qrImageUrl: "",
@@ -180,9 +180,10 @@
       standColor: selections.standColor,
       createdAt: new Date().toISOString(),
     };
+    currentOrder.invoiceAmount = createInvoiceAmount(currentOrder.id, PAYMENT_CONFIG.baseAmount);
 
     orderId.textContent = currentOrder.id;
-    paymentAmount.textContent = `${PAYMENT_CONFIG.amount} ${PAYMENT_CONFIG.currency}`;
+    paymentAmount.textContent = `${currentOrder.invoiceAmount} ${PAYMENT_CONFIG.currency}`;
     paymentAddress.textContent = PAYMENT_CONFIG.receivingAddress;
     paymentStatus.textContent = "请完成转账。付款后系统会自动查询支付状态。";
     renderPaymentTarget();
@@ -253,8 +254,9 @@
       url.searchParams.set("bucketColor", currentOrder.bucketColor);
       url.searchParams.set("standColor", currentOrder.standColor);
       url.searchParams.set("address", PAYMENT_CONFIG.receivingAddress);
-      url.searchParams.set("amount", PAYMENT_CONFIG.amount);
+      url.searchParams.set("amount", currentOrder.invoiceAmount);
       url.searchParams.set("currency", PAYMENT_CONFIG.currency);
+      url.searchParams.set("createdAt", currentOrder.createdAt);
 
       const response = await fetch(url.toString(), {
         headers: {
@@ -307,6 +309,21 @@
     ].join("");
     const random = Math.random().toString(36).slice(2, 7).toUpperCase();
     return `AQ${stamp}${random}`;
+  }
+
+  function createInvoiceAmount(orderId, baseAmount) {
+    const normalizedBase = Number.parseFloat(baseAmount);
+    if (!Number.isFinite(normalizedBase)) {
+      return baseAmount;
+    }
+
+    let hash = 0;
+    for (let index = 0; index < orderId.length; index += 1) {
+      hash = (hash * 31 + orderId.charCodeAt(index)) % 899;
+    }
+
+    const offset = (hash + 1) / 1000;
+    return (normalizedBase + offset).toFixed(3);
   }
 
   function escapeHtml(value) {
