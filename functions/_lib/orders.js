@@ -187,6 +187,7 @@ export async function getOrderById(db, orderId) {
 
 export async function lookupOrders(db, query) {
   const phone = normalizePhone(query.phone || "");
+  const legacyPhone = phone ? `+${phone}` : "";
   const limit = clampLimit(query.limit);
 
   if (!phone) {
@@ -194,8 +195,8 @@ export async function lookupOrders(db, query) {
   }
 
   const statement = db
-    .prepare("SELECT * FROM orders WHERE lookup_phone = ? ORDER BY created_at_ms DESC LIMIT ?")
-    .bind(phone, limit);
+    .prepare("SELECT * FROM orders WHERE lookup_phone = ? OR lookup_phone = ? ORDER BY created_at_ms DESC LIMIT ?")
+    .bind(phone, legacyPhone, limit);
 
   const result = await statement.all();
   const rows = Array.isArray(result.results) ? result.results : [];
