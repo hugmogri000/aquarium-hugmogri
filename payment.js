@@ -300,7 +300,7 @@
     paymentResultFields.baseAmount.textContent = `${order.payment.baseAmountUsd} 美元`;
     paymentResultFields.paymentAmount.textContent = `${order.payment.payableAmountUsdt} ${order.payment.currency}`;
     paymentResultFields.paymentAddress.textContent = order.payment.receivingAddress;
-    paymentResultFields.paymentState.textContent = order.paymentStatusText || order.paymentStatus || "待支付确认";
+    paymentResultFields.paymentState.textContent = order.paymentStatusText || order.paymentStatus || "待支付";
     paymentResultFields.paymentTxId.textContent = order.paymentTxId || "待确认";
     paymentNote.textContent = `${PAYMENT_CONFIG.paymentTip} 产品与运费参考价为 ${order.payment.baseAmountUsd} 美元，当前专属支付金额为 ${order.payment.payableAmountUsdt} ${order.payment.currency}。`;
     paymentStatus.textContent = "请复制金额和付款地址完成转账，付款完成后可通过“查询订单”查看支付状态。";
