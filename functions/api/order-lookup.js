@@ -9,15 +9,14 @@ export async function onRequestGet(context) {
   }
 
   const url = new URL(context.request.url);
-  const email = url.searchParams.get("email") || "";
   const phone = url.searchParams.get("phone") || "";
 
-  if (!email && !phone) {
-    return errorJson("请至少填写邮箱或手机号。", 400);
+  if (!phone) {
+    return errorJson("请填写手机号。", 400);
   }
 
   try {
-    const orders = await lookupOrders(context.env.DB, { email, phone });
+    const orders = await lookupOrders(context.env.DB, { phone });
     const authCode = String(context.env.YW_TRACK_AUTH || "");
     const enriched = await Promise.all(
       orders.map(async (order) => {

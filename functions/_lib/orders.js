@@ -186,30 +186,16 @@ export async function getOrderById(db, orderId) {
 }
 
 export async function lookupOrders(db, query) {
-  const email = normalizeEmail(query.email || "");
   const phone = normalizePhone(query.phone || "");
   const limit = clampLimit(query.limit);
 
-  if (!email && !phone) {
+  if (!phone) {
     return [];
   }
 
-  let statement;
-  if (email && phone) {
-    statement = db
-      .prepare(
-        "SELECT * FROM orders WHERE lookup_email = ? OR lookup_phone = ? ORDER BY created_at_ms DESC LIMIT ?"
-      )
-      .bind(email, phone, limit);
-  } else if (email) {
-    statement = db
-      .prepare("SELECT * FROM orders WHERE lookup_email = ? ORDER BY created_at_ms DESC LIMIT ?")
-      .bind(email, limit);
-  } else {
-    statement = db
-      .prepare("SELECT * FROM orders WHERE lookup_phone = ? ORDER BY created_at_ms DESC LIMIT ?")
-      .bind(phone, limit);
-  }
+  const statement = db
+    .prepare("SELECT * FROM orders WHERE lookup_phone = ? ORDER BY created_at_ms DESC LIMIT ?")
+    .bind(phone, limit);
 
   const result = await statement.all();
   const rows = Array.isArray(result.results) ? result.results : [];
@@ -394,11 +380,11 @@ function getPaymentStatusText(status) {
     case "paid":
       return "已支付";
     case "pending":
-      return "待支付确认";
+      return "待支付";
     case "not_configured":
       return "支付检测未配置";
     default:
-      return "待支付确认";
+      return "待支付";
   }
 }
 
@@ -426,8 +412,7 @@ function normalizeEmail(value) {
 
 function normalizePhone(value) {
   const raw = normalizeText(value);
-  const plus = raw.startsWith("+") ? "+" : "";
-  return `${plus}${raw.replace(/[^\d]/g, "")}`;
+  return raw.replace(/[^\d]/g, "");
 }
 
 function toMoney(value, digits) {

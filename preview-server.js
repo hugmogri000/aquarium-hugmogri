@@ -66,13 +66,10 @@ const server = http.createServer(async (req, res) => {
   }
 
   if (url.pathname === "/api/order-lookup") {
-    const email = String(url.searchParams.get("email") || "").trim().toLowerCase();
     const phone = normalizePhone(url.searchParams.get("phone") || "");
 
     const matched = Array.from(orders.values())
-      .filter((order) => {
-        return (email && order.customer.email.toLowerCase() === email) || (phone && normalizePhone(order.customer.phone) === phone);
-      })
+      .filter((order) => phone && normalizePhone(order.customer.phone) === phone)
       .sort((left, right) => right.createdAt.localeCompare(left.createdAt))
       .map(orderToResponse);
 
@@ -149,7 +146,7 @@ function createPreviewOrder(payload) {
     id: orderId,
     createdAt,
     paymentStatus: "pending",
-    paymentStatusText: "待支付确认",
+    paymentStatusText: "待支付",
     paymentTxId: "",
     paymentConfirmedAt: "",
     selectionText,
@@ -211,8 +208,7 @@ function createOrderId() {
 
 function normalizePhone(value) {
   const raw = String(value || "").trim();
-  const plus = raw.startsWith("+") ? "+" : "";
-  return `${plus}${raw.replace(/[^\d]/g, "")}`;
+  return raw.replace(/[^\d]/g, "");
 }
 
 function normalizeAmount(value) {

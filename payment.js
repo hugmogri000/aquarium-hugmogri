@@ -177,7 +177,7 @@
     lookupModal.hidden = false;
     document.body.classList.add("modal-lock");
     window.setTimeout(() => {
-      lookupModal.querySelector('input[name="lookupEmail"]').focus();
+      lookupModal.querySelector('input[name="lookupPhone"]').focus();
     }, 0);
   }
 
@@ -391,15 +391,13 @@
   }
 
   async function lookupOrders() {
-    const emailInput = lookupForm.querySelector('input[name="lookupEmail"]');
     const phoneInput = lookupForm.querySelector('input[name="lookupPhone"]');
-    const email = String(emailInput.value || "").trim();
     const phone = String(phoneInput.value || "").trim();
 
-    if (!email && !phone) {
+    if (!phone) {
       lookupAlert.hidden = false;
-      lookupAlert.textContent = "请至少填写邮箱或手机号。";
-      emailInput.focus();
+      lookupAlert.textContent = "请填写手机号。";
+      phoneInput.focus();
       return;
     }
 
@@ -412,12 +410,7 @@
 
     try {
       const query = new URLSearchParams();
-      if (email) {
-        query.set("email", email);
-      }
-      if (phone) {
-        query.set("phone", phone);
-      }
+      query.set("phone", phone);
 
       const response = await fetchJson(`${API.lookupOrder}?${query.toString()}`, {
         method: "GET",
@@ -559,7 +552,7 @@
           <h3>${escapeHtml(order.id)}</h3>
           <p>${escapeHtml(order.createdAt || "")}</p>
         </div>
-        <strong class="lookup-order-state">${escapeHtml(order.paymentStatusText || "待支付确认")}</strong>
+        <strong class="lookup-order-state">${escapeHtml(order.paymentStatusText || "待支付")}</strong>
       </div>
 
       <dl class="payment-detail lookup-order-detail">
@@ -829,17 +822,13 @@
         <div class="payment-dialog-header">
           <div>
             <h2 id="lookup-title">查询订单</h2>
-            <p>填写邮箱或手机号，查询订单信息和物流信息</p>
+            <p>填写手机号，查询订单信息和物流信息</p>
           </div>
           <button class="modal-close" type="button" data-close-lookup aria-label="Close order lookup dialog">×</button>
         </div>
 
         <form class="payment-form lookup-form" data-lookup-form autocomplete="off" novalidate>
           <div class="customer-grid lookup-grid">
-            <label class="customer-field">
-              <span>邮箱</span>
-              <input type="email" name="lookupEmail" autocomplete="off" inputmode="email">
-            </label>
             <label class="customer-field">
               <span>手机号</span>
               <input type="tel" name="lookupPhone" autocomplete="off" inputmode="tel">

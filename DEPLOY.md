@@ -5,7 +5,7 @@
 - 静态展示页
 - 下单创建接口
 - TRON / TRC20-USDT 支付校验接口
-- 邮箱 / 手机号订单查询接口
+- 手机号订单查询接口
 - 燕文物流轨迹查询接口
 
 主要文件：
@@ -189,7 +189,7 @@ ADMIN_API_TOKEN
 
 当前逻辑已经按你的要求设计成：
 
-- 用户输入邮箱或手机号
+- 用户输入手机号
 - 查询他自己的订单
 - 展示订单信息
 - 展示物流信息
@@ -274,12 +274,59 @@ http://127.0.0.1:4190/
 5. 在 Pages 项目里填 `YW_TRACK_AUTH`
 6. 在 Pages 项目里填 `ADMIN_API_TOKEN`
 
-## 9. 相关文档
+## 9. 你后面手动填写哪些信息
+
+你后面手动维护的内容，主要只有两类：
+
+### 9.1 Cloudflare Secrets
+
+在 `Workers & Pages -> aquarium-hugmogri -> Settings -> Variables and Secrets` 里填写：
+
+- `TRON_API_KEY`：你的 TronGrid API Key
+- `YW_TRACK_AUTH`：燕文物流轨迹接口需要的 `Authorization`
+- `ADMIN_API_TOKEN`：你自己定义的一串后台令牌
+
+### 9.2 某个客户的运单号
+
+客户支付后，你发货时只需要把对应订单的运单号写进去。
+
+现在先用接口手动写入，后端接口已经有了：
+
+```text
+POST /api/admin-update-order
+```
+
+PowerShell 示例：
+
+```powershell
+$body = @{
+  orderId = "AQ202606211234ABCD"
+  logisticsWaybill = "UH183870291YP"
+  logisticsProvider = "yanwen"
+} | ConvertTo-Json
+
+Invoke-RestMethod `
+  -Uri "https://aquarium.hugmogri.com/api/admin-update-order" `
+  -Method Post `
+  -Headers @{ Authorization = "Bearer 你自己的ADMIN_API_TOKEN" } `
+  -ContentType "application/json" `
+  -Body $body
+```
+
+写入成功后：
+
+- 客户再次用手机号查询订单
+- 页面会直接显示该运单号
+- 系统会自动拿这个运单号去查燕文轨迹
+- 如果燕文有轨迹，就显示真实轨迹
+- 如果还没有轨迹，就显示 `暂无物流轨迹`
+
+## 10. 相关文档
 
 - [查询运单详情](https://opendocs.yw56.com.cn/webfile/6993834083654569984/)
 - [物流轨迹查询](https://opendocs.yw56.com.cn/webfile/7128663508291424256/)
 
-## 10. 一个现实提醒
+## 11. 一个现实提醒
 
 如果你坚持所有客户都支付完全一样的金额，例如都支付 `208 USDT` 到同一个地址，那么：
 
