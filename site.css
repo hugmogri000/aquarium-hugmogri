@@ -458,6 +458,10 @@ h2 {
   box-shadow: 0 24px 56px rgba(8, 18, 24, 0.22);
 }
 
+.payment-dialog-wide {
+  width: min(100%, 760px);
+}
+
 .payment-dialog-header {
   display: flex;
   align-items: flex-start;
@@ -720,6 +724,112 @@ h2 {
   gap: 10px;
 }
 
+.lookup-form {
+  display: grid;
+  gap: 18px;
+}
+
+.lookup-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.lookup-results {
+  display: grid;
+  gap: 16px;
+}
+
+.lookup-empty {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.95rem;
+}
+
+.lookup-list {
+  display: grid;
+  gap: 14px;
+}
+
+.lookup-order-card {
+  padding: 16px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #ffffff;
+}
+
+.lookup-order-head,
+.lookup-tracking-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.lookup-order-head h3 {
+  margin: 0;
+  font-size: 1rem;
+}
+
+.lookup-order-head p,
+.lookup-tracking-head span {
+  margin: 6px 0 0;
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+.lookup-order-state {
+  padding: 7px 10px;
+  border-radius: 999px;
+  background: var(--band);
+  color: var(--ink);
+  font-size: 0.84rem;
+  font-weight: 800;
+}
+
+.lookup-order-detail {
+  margin-top: 14px;
+}
+
+.lookup-tracking {
+  margin-top: 16px;
+  padding-top: 14px;
+  border-top: 1px solid var(--line);
+}
+
+.lookup-tracking-head strong {
+  font-size: 0.96rem;
+}
+
+.lookup-tracking-empty {
+  margin: 12px 0 0;
+  color: var(--muted);
+  font-size: 0.92rem;
+}
+
+.lookup-tracking-list {
+  margin: 12px 0 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 10px;
+}
+
+.lookup-tracking-item {
+  display: grid;
+  gap: 4px;
+  padding-left: 12px;
+  border-left: 2px solid var(--line);
+}
+
+.lookup-tracking-item strong {
+  font-size: 0.9rem;
+}
+
+.lookup-tracking-item span {
+  color: var(--muted);
+  font-size: 0.9rem;
+  line-height: 1.5;
+}
+
 .site-footer {
   padding: 18px 0 32px;
   border-top: 1px solid rgba(216, 228, 234, 0.92);
@@ -938,7 +1048,8 @@ h2 {
   }
 
   .customer-grid,
-  .payment-copy-grid {
+  .payment-copy-grid,
+  .lookup-grid {
     grid-template-columns: 1fr;
   }
 }
