@@ -2,6 +2,7 @@
   const API = {
     createOrder: "/api/create-order",
     lookupOrder: "/api/order-lookup",
+    trackOrder: "/api/track-order",
   };
 
   const PAYMENT_CONFIG = {
@@ -574,7 +575,7 @@
     try {
       const query = new URLSearchParams();
       query.set("orderId", orderId);
-      const response = await fetchJson(`/api/check-payment?${query.toString()}`, { method: "GET" });
+      const response = await fetchJson(`${API.trackOrder}?${query.toString()}`, { method: "GET" });
       card.innerHTML = buildOrderCardHtml(response.order);
     } catch (error) {
       lookupAlert.hidden = false;
@@ -586,7 +587,8 @@
 
   function buildTrackingHtml(tracking) {
     if (!tracking || !tracking.available || !Array.isArray(tracking.checkpoints) || !tracking.checkpoints.length) {
-      return `<p class="lookup-tracking-empty">No tracking yet.</p>`;
+      const message = tracking && tracking.message ? tracking.message : "No tracking yet.";
+      return `<p class="lookup-tracking-empty">${escapeHtml(message)}</p>`;
     }
 
     const items = tracking.checkpoints

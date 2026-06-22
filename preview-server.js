@@ -67,6 +67,58 @@ const server = http.createServer(async (req, res) => {
     });
   }
 
+  if (url.pathname === "/api/track-order" && req.method === "GET") {
+    const orderId = String(url.searchParams.get("orderId") || "").trim();
+    const order = orders.get(orderId);
+
+    if (!order) {
+      return sendJson(res, 404, {
+        success: false,
+        message: "Preview order not found.",
+      });
+    }
+
+    if (!order.logistics.waybillNumber) {
+      order.logistics.tracking = {
+        available: false,
+        message: "No waybill yet.",
+        trackingStatus: "EMPTY",
+        checkpoints: [],
+      };
+      return sendJson(res, 200, {
+        success: true,
+        order: orderToResponse(order),
+      });
+    }
+
+    const fakeWaybill = String(order.logistics.waybillNumber || "").trim().toUpperCase();
+    if (fakeWaybill.startsWith("FAKE") || fakeWaybill.startsWith("TEST") || fakeWaybill.startsWith("YWTEST")) {
+      order.logistics.tracking = {
+        available: false,
+        message: "Waybill number not found.",
+        trackingStatus: "NOTFOUND",
+        checkpoints: [],
+      };
+    } else {
+      order.logistics.tracking = {
+        available: true,
+        message: "",
+        trackingStatus: "IN_TRANSIT",
+        checkpoints: [
+          {
+            time: new Date().toISOString(),
+            message: "Preview tracking checkpoint",
+          },
+        ],
+      };
+    }
+
+    return sendJson(res, 200, {
+      success: true,
+      order: orderToResponse(order),
+    });
+  }
+
   if (url.pathname === "/api/order-lookup" && req.method === "GET") {
     const phone = normalizePhone(url.searchParams.get("phone") || "");
     const matched = Array.from(orders.values())
@@ -117,17 +169,7 @@ const server = http.createServer(async (req, res) => {
     order.logistics.waybillNumber = String(payload.logisticsWaybill || "").trim();
     order.logistics.provider = "yanwen";
     order.logistics.status = String(payload.logisticsStatus || "").trim();
-    order.logistics.tracking = order.logistics.waybillNumber
-      ? {
-          available: true,
-          checkpoints: [
-            {
-              time: new Date().toISOString(),
-              message: order.logistics.status || "Waybill saved in preview mode",
-            },
-          ],
-        }
-      : null;
+    order.logistics.tracking = null;
 
     return sendJson(res, 200, {
       success: true,

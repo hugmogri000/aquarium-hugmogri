@@ -27,12 +27,14 @@ export async function fetchTrackingInfo(waybillNumber, authCode) {
   if (!firstResult) {
     return {
       available: false,
-      message: "暂无物流轨迹",
+      message: "No tracking yet.",
+      trackingStatus: "EMPTY",
       rawMessage: String(payload.message || ""),
       checkpoints: [],
     };
   }
 
+  const trackingStatus = String(firstResult.tracking_status || "").toUpperCase();
   const checkpoints = Array.isArray(firstResult.checkpoints)
     ? firstResult.checkpoints
         .map((item) => ({
@@ -47,16 +49,17 @@ export async function fetchTrackingInfo(waybillNumber, authCode) {
     : [];
 
   const latest = checkpoints[0] || null;
+  const notFound = trackingStatus === "NOTFOUND";
 
   return {
     available: checkpoints.length > 0,
-    message: checkpoints.length > 0 ? "" : "暂无物流轨迹",
+    message: checkpoints.length > 0 ? "" : (notFound ? "Waybill number not found." : "No tracking yet."),
     trackingNumber: String(firstResult.tracking_number || trackingNumber),
     waybillNumber: String(firstResult.waybill_number || trackingNumber),
     exchangeNumber: String(firstResult.exchange_number || ""),
     lastMileCarrier: String(firstResult.last_mile_carrier || ""),
     lastMileCarrierWebsite: String(firstResult.last_mile_carrier_website || ""),
-    trackingStatus: String(firstResult.tracking_status || ""),
+    trackingStatus,
     trackingStatusWaybill: firstResult.tracking_status_waybill || null,
     destinationCountry: String(firstResult.destination_country || ""),
     originCountry: String(firstResult.origin_country || ""),
