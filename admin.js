@@ -1,72 +1,133 @@
 (function () {
-  const filterForm = document.querySelector("[data-admin-filter]");
-  const alertBox = document.querySelector("[data-admin-alert]");
-  const list = document.querySelector("[data-admin-list]");
+  const STORAGE_KEY = "aquarium_admin_token";
 
-  if (!filterForm || !alertBox || !list) {
+  const list = document.querySelector("[data-admin-list]");
+  const alertBox = document.querySelector("[data-admin-alert]");
+  const paymentStatusSelect = document.querySelector("[data-admin-payment-status]");
+  const refreshButton = document.querySelector("[data-admin-refresh]");
+  const resetTokenButton = document.querySelector("[data-admin-reset-token]");
+  const tokenModal = document.querySelector("[data-admin-token-modal]");
+  const tokenForm = document.querySelector("[data-admin-token-form]");
+  const tokenAlert = document.querySelector("[data-admin-token-alert]");
+
+  if (!list || !alertBox || !paymentStatusSelect || !refreshButton || !resetTokenButton || !tokenModal || !tokenForm || !tokenAlert) {
     return;
   }
 
-  filterForm.addEventListener("submit", async (event) => {
-    event.preventDefault();
-    await loadOrders();
+  if (window.location.protocol === "file:") {
+    setAlert("Please open the admin page from http://127.0.0.1:4190/admin.html or the deployed website, not via file://.");
+    refreshButton.disabled = true;
+    paymentStatusSelect.disabled = true;
+    return;
+  }
+
+  refreshButton.addEventListener("click", async () => {
+    await ensureTokenAndLoad();
+  });
+
+  resetTokenButton.addEventListener("click", () => {
+    localStorage.removeItem(STORAGE_KEY);
+    openTokenModal();
+  });
+
+  paymentStatusSelect.addEventListener("change", async () => {
+    await ensureTokenAndLoad();
   });
 
   list.addEventListener("submit", async (event) => {
     const form = event.target.closest("[data-waybill-form]");
-    if (!form) {
-      return;
-    }
+    if (!form) return;
     event.preventDefault();
     await updateWaybill(form);
   });
+
+  tokenForm.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const formData = new FormData(tokenForm);
+    const token = String(formData.get("token") || "").trim();
+    if (!token) {
+      setTokenAlert("请填写管理口令。");
+      return;
+    }
+
+    localStorage.setItem(STORAGE_KEY, token);
+    closeTokenModal();
+    await loadOrders();
+  });
+
+  document.addEventListener("keydown", (event) => {
+    if (event.key === "Escape" && !tokenModal.hidden) {
+      event.preventDefault();
+    }
+  });
+
+  ensureTokenAndLoad();
+
+  async function ensureTokenAndLoad() {
+    const token = getStoredToken();
+    if (!token) {
+      openTokenModal();
+      return;
+    }
+
+    await loadOrders();
+  }
 
   async function loadOrders() {
     setAlert("", true);
     list.innerHTML = "";
 
-    const formData = new FormData(filterForm);
-    const token = String(formData.get("token") || "").trim();
-    const phone = String(formData.get("phone") || "").trim();
-    const paymentStatus = String(formData.get("paymentStatus") || "").trim();
-
+    const token = getStoredToken();
     if (!token) {
-      setAlert("请先填写管理口令。");
+      openTokenModal();
       return;
     }
 
     const params = new URLSearchParams();
     params.set("token", token);
     params.set("limit", "100");
-    if (phone) params.set("phone", phone);
-    if (paymentStatus) params.set("paymentStatus", paymentStatus);
+    const paymentStatus = String(paymentStatusSelect.value || "").trim();
+    if (paymentStatus) {
+      params.set("paymentStatus", paymentStatus);
+    }
 
     try {
       const payload = await fetchJson(`/api/admin-orders?${params.toString()}`);
-      renderOrders(Array.isArray(payload.orders) ? payload.orders : [], token);
+      renderOrders(Array.isArray(payload.orders) ? payload.orders : []);
     } catch (error) {
-      setAlert(getErrorMessage(error, "加载订单失败。"));
+      const message = getErrorMessage(error, "加载订单失败。");
+      if (message === "Unauthorized." || message === "未授权。") {
+        localStorage.removeItem(STORAGE_KEY);
+        openTokenModal("管理口令无效，请重新输入。");
+        return;
+      }
+      if (message === "Failed to fetch") {
+        setAlert("后台接口不可用。请打开 http://127.0.0.1:4190/admin.html 或已部署的线上站点。");
+        return;
+      }
+      setAlert(message);
     }
   }
 
-  function renderOrders(orders, token) {
+  function renderOrders(orders) {
     if (!orders.length) {
-      list.innerHTML = '<article class="lookup-order-card"><p class="lookup-empty">没有查询到订单。</p></article>';
+      list.innerHTML = '<article class="lookup-order-card"><p class="lookup-empty">当前没有订单。</p></article>';
       return;
     }
 
-    list.innerHTML = orders.map((order) => buildOrderCard(order, token)).join("");
+    const groups = groupOrdersByDate(orders);
+    list.innerHTML = groups.map((group) => buildDateGroup(group)).join("");
   }
 
   async function updateWaybill(form) {
     const formData = new FormData(form);
-    const token = String(formData.get("token") || "").trim();
+    const token = getStoredToken();
     const orderId = String(formData.get("orderId") || "").trim();
     const logisticsWaybill = String(formData.get("logisticsWaybill") || "").trim();
     const logisticsStatus = String(formData.get("logisticsStatus") || "").trim();
 
     if (!token || !orderId) {
-      setAlert("缺少管理口令或订单号。");
+      openTokenModal("请先设置有效的管理口令。");
       return;
     }
 
@@ -85,14 +146,38 @@
         }),
       });
 
-      setAlert(`订单 ${orderId} 的物流信息已更新。`, true);
+      setAlert(`订单 ${orderId} 的物流信息已保存。`, true);
       await loadOrders();
     } catch (error) {
-      setAlert(getErrorMessage(error, "更新物流信息失败。"));
+      const message = getErrorMessage(error, "更新物流信息失败。");
+      if (message === "Unauthorized." || message === "未授权。") {
+        localStorage.removeItem(STORAGE_KEY);
+        openTokenModal("管理口令无效，请重新输入。");
+        return;
+      }
+      if (message === "Failed to fetch") {
+        setAlert("后台接口不可用。请打开 http://127.0.0.1:4190/admin.html 或已部署的线上站点。");
+        return;
+      }
+      setAlert(message);
     }
   }
 
-  function buildOrderCard(order, token) {
+  function buildDateGroup(group) {
+    return `
+      <section class="admin-date-group">
+        <div class="admin-date-head">
+          <h2>${escapeHtml(group.label)}</h2>
+          <span>${group.orders.length} 单</span>
+        </div>
+        <div class="admin-date-list">
+          ${group.orders.map((order) => buildOrderCard(order)).join("")}
+        </div>
+      </section>
+    `;
+  }
+
+  function buildOrderCard(order) {
     const tracking = order.logistics && order.logistics.tracking;
     const checkpoints = tracking && Array.isArray(tracking.checkpoints) ? tracking.checkpoints : [];
     const trackingHtml = checkpoints.length
@@ -109,7 +194,7 @@
         <div class="lookup-order-head">
           <div>
             <h3>${escapeHtml(order.id)}</h3>
-            <p>${escapeHtml(order.createdAt || "")}</p>
+            <p>${escapeHtml(formatDateTime(order.createdAt || ""))}</p>
           </div>
           <strong class="lookup-order-state">${escapeHtml(order.paymentStatusText || order.paymentStatus || "")}</strong>
         </div>
@@ -127,10 +212,9 @@
         </dl>
 
         <form class="admin-waybill-form" data-waybill-form>
-          <input type="hidden" name="token" value="${escapeHtml(token)}">
           <input type="hidden" name="orderId" value="${escapeHtml(order.id)}">
           <label class="customer-field">
-            <span>运单号</span>
+            <span>燕文运单号</span>
             <input type="text" name="logisticsWaybill" value="${escapeHtml(order.logistics.waybillNumber || "")}">
           </label>
           <label class="customer-field">
@@ -151,6 +235,38 @@
     `;
   }
 
+  function groupOrdersByDate(orders) {
+    const map = new Map();
+    for (const order of orders) {
+      const label = formatDateOnly(order.createdAt || "");
+      if (!map.has(label)) {
+        map.set(label, []);
+      }
+      map.get(label).push(order);
+    }
+
+    return Array.from(map.entries()).map(([label, groupedOrders]) => ({
+      label,
+      orders: groupedOrders,
+    }));
+  }
+
+  function formatDateOnly(value) {
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) {
+      return "未知日期";
+    }
+    return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
+  }
+
+  function formatDateTime(value) {
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) {
+      return value;
+    }
+    return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`;
+  }
+
   function formatAddress(customer) {
     return [
       `${customer.state || ""} ${customer.city || ""}`.trim(),
@@ -158,6 +274,23 @@
       customer.unitNumber ? `门牌号 ${customer.unitNumber}` : "",
       customer.postalCode ? `邮编 ${customer.postalCode}` : "",
     ].filter(Boolean).join("，");
+  }
+
+  function openTokenModal(message = "") {
+    tokenModal.hidden = false;
+    document.body.classList.add("modal-lock");
+    tokenForm.reset();
+    setTokenAlert(message);
+  }
+
+  function closeTokenModal() {
+    tokenModal.hidden = true;
+    document.body.classList.remove("modal-lock");
+    setTokenAlert("");
+  }
+
+  function getStoredToken() {
+    return String(localStorage.getItem(STORAGE_KEY) || "").trim();
   }
 
   function setAlert(message, success) {
@@ -170,6 +303,16 @@
     alertBox.hidden = false;
     alertBox.textContent = message;
     alertBox.classList.toggle("is-success", Boolean(success));
+  }
+
+  function setTokenAlert(message) {
+    if (!message) {
+      tokenAlert.hidden = true;
+      tokenAlert.textContent = "";
+      return;
+    }
+    tokenAlert.hidden = false;
+    tokenAlert.textContent = message;
   }
 
   async function fetchJson(url, options) {
@@ -200,5 +343,9 @@
       .replace(/>/g, "&gt;")
       .replace(/"/g, "&quot;")
       .replace(/'/g, "&#39;");
+  }
+
+  function pad(value) {
+    return String(value).padStart(2, "0");
   }
 })();

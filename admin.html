@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>订单管理 | Hugmogri Aquarium</title>
   <meta name="robots" content="noindex,nofollow">
-  <link rel="stylesheet" href="./site.css?v=20260622-admin-2">
+  <link rel="stylesheet" href="./site.css?v=20260622-admin-4">
 </head>
 <body class="admin-body">
   <main class="admin-shell">
@@ -13,35 +13,49 @@
       <div>
         <p class="eyebrow">管理后台</p>
         <h1>订单管理</h1>
-        <p class="hero-summary">查看客户订单、支付状态，并录入或更新运单号。</p>
+        <p class="hero-summary">默认显示全部订单，可按支付状态筛选，并直接录入燕文运单号。</p>
       </div>
     </section>
 
     <section class="admin-panel">
-      <form class="admin-filter" data-admin-filter autocomplete="off">
-        <label class="customer-field">
-          <span>管理口令</span>
-          <input type="password" name="token" required>
-        </label>
-        <label class="customer-field">
-          <span>手机号</span>
-          <input type="tel" name="phone">
-        </label>
+      <div class="admin-toolbar">
         <label class="customer-field">
           <span>支付状态</span>
-          <select name="paymentStatus">
+          <select name="paymentStatus" data-admin-payment-status>
             <option value="">全部</option>
             <option value="pending">待支付</option>
             <option value="paid">已支付</option>
           </select>
         </label>
-        <button class="button" type="submit">加载订单</button>
-      </form>
+        <button class="button ghost" type="button" data-admin-refresh>刷新订单</button>
+        <button class="button ghost" type="button" data-admin-reset-token>重新设置口令</button>
+      </div>
       <p class="payment-form-alert" data-admin-alert hidden></p>
     </section>
 
     <section class="admin-list" data-admin-list></section>
   </main>
-  <script src="./admin.js?v=20260622-admin-2" defer></script>
+
+  <div class="payment-modal" data-admin-token-modal hidden>
+    <button class="payment-backdrop" type="button" aria-label="关闭口令弹窗"></button>
+    <div class="payment-dialog" role="dialog" aria-modal="true" aria-labelledby="admin-token-title">
+      <div class="payment-dialog-header">
+        <div>
+          <h2 id="admin-token-title">设置后台口令</h2>
+          <p>首次进入后台时，需要输入一次管理口令，之后会保存在当前浏览器。</p>
+        </div>
+      </div>
+      <form class="payment-form" data-admin-token-form autocomplete="off">
+        <label class="customer-field">
+          <span>管理口令</span>
+          <input type="password" name="token" required>
+        </label>
+        <p class="payment-form-alert" data-admin-token-alert hidden></p>
+        <button class="button" type="submit">保存并加载订单</button>
+      </form>
+    </div>
+  </div>
+
+  <script src="./admin.js?v=20260622-admin-4" defer></script>
 </body>
 </html>

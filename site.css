@@ -227,6 +227,12 @@ img {
   text-transform: uppercase;
 }
 
+.hero-title {
+  font-size: clamp(2.8rem, 5vw, 4.4rem);
+  line-height: 1;
+  margin-bottom: 20px;
+}
+
 .section-number {
   margin-bottom: 12px;
 }
@@ -860,9 +866,9 @@ h2 {
   box-shadow: var(--shadow);
 }
 
-.admin-filter {
+.admin-toolbar {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: minmax(220px, 280px) auto auto;
   gap: 12px;
   align-items: end;
 }
@@ -881,6 +887,34 @@ h2 {
 .admin-list {
   display: grid;
   gap: 16px;
+}
+
+.admin-date-group {
+  display: grid;
+  gap: 12px;
+}
+
+.admin-date-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.admin-date-head h2 {
+  margin: 0;
+  font-size: 1.2rem;
+}
+
+.admin-date-head span {
+  color: var(--muted);
+  font-size: 0.92rem;
+  font-weight: 700;
+}
+
+.admin-date-list {
+  display: grid;
+  gap: 14px;
 }
 
 .admin-order-card {
@@ -1115,7 +1149,7 @@ h2 {
   .customer-grid,
   .payment-copy-grid,
   .lookup-grid,
-  .admin-filter,
+  .admin-toolbar,
   .admin-waybill-form {
     grid-template-columns: 1fr;
   }
