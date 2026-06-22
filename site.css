@@ -801,6 +801,33 @@ h2 {
   border-top: 1px solid var(--line);
 }
 
+.lookup-waybill-panel {
+  margin-top: 18px;
+  padding: 16px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: linear-gradient(180deg, rgba(25, 155, 176, 0.06), rgba(255, 255, 255, 0.98));
+}
+
+.lookup-waybill-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.lookup-waybill-head strong {
+  font-size: 0.96rem;
+}
+
+.lookup-waybill-number {
+  margin: 12px 0 0;
+  font-size: 1.16rem;
+  font-weight: 800;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+}
+
 .lookup-tracking-head strong {
   font-size: 0.96rem;
 }
@@ -924,7 +951,7 @@ h2 {
 
 .admin-waybill-form {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto;
+  grid-template-columns: minmax(0, 1fr) auto;
   gap: 12px;
   align-items: end;
 }

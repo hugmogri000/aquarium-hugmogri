@@ -15,7 +15,7 @@
   }
 
   if (window.location.protocol === "file:") {
-    setAlert("Please open the admin page from http://127.0.0.1:4190/admin.html or the deployed website, not via file://.");
+    setAlert("请通过 http://127.0.0.1:4190/admin.html 或已部署的线上后台打开本页，不要直接使用 file:// 打开。");
     refreshButton.disabled = true;
     paymentStatusSelect.disabled = true;
     return;
@@ -86,6 +86,7 @@
     const params = new URLSearchParams();
     params.set("token", token);
     params.set("limit", "100");
+
     const paymentStatus = String(paymentStatusSelect.value || "").trim();
     if (paymentStatus) {
       params.set("paymentStatus", paymentStatus);
@@ -124,7 +125,6 @@
     const token = getStoredToken();
     const orderId = String(formData.get("orderId") || "").trim();
     const logisticsWaybill = String(formData.get("logisticsWaybill") || "").trim();
-    const logisticsStatus = String(formData.get("logisticsStatus") || "").trim();
 
     if (!token || !orderId) {
       openTokenModal("请先设置有效的管理口令。");
@@ -142,14 +142,13 @@
           orderId,
           logisticsWaybill,
           logisticsProvider: "yanwen",
-          logisticsStatus,
         }),
       });
 
-      setAlert(`订单 ${orderId} 的物流信息已保存。`, true);
+      setAlert(`订单 ${orderId} 的燕文运单号已保存。`, true);
       await loadOrders();
     } catch (error) {
-      const message = getErrorMessage(error, "更新物流信息失败。");
+      const message = getErrorMessage(error, "更新运单号失败。");
       if (message === "Unauthorized." || message === "未授权。") {
         localStorage.removeItem(STORAGE_KEY);
         openTokenModal("管理口令无效，请重新输入。");
@@ -217,11 +216,7 @@
             <span>燕文运单号</span>
             <input type="text" name="logisticsWaybill" value="${escapeHtml(order.logistics.waybillNumber || "")}">
           </label>
-          <label class="customer-field">
-            <span>内部物流状态</span>
-            <input type="text" name="logisticsStatus" value="${escapeHtml(order.logistics.status || "")}">
-          </label>
-          <button class="button small" type="submit">保存物流信息</button>
+          <button class="button small" type="submit">保存运单号</button>
         </form>
 
         <section class="lookup-tracking">

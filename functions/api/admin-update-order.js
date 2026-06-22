@@ -34,7 +34,7 @@ export async function onRequestPost(context) {
   const updated = await updateOrderLogistics(context.env.DB, orderId, {
     logisticsWaybill: String(body.logisticsWaybill || "").trim(),
     logisticsProvider: String(body.logisticsProvider || "yanwen").trim() || "yanwen",
-    logisticsStatus: String(body.logisticsStatus || "").trim(),
+    logisticsStatus: "",
     logisticsLastSync: "",
     trackingSnapshotJson: "",
   });

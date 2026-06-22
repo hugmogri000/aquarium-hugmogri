@@ -140,6 +140,12 @@
     await lookupOrders();
   });
 
+  lookupList.addEventListener("click", async (event) => {
+    const button = event.target.closest("[data-track-order]");
+    if (!button) return;
+    await handleTrackLogistics(button);
+  });
+
   paidButton.addEventListener("click", closePaymentModal);
 
   document.addEventListener("keydown", (event) => {
@@ -402,6 +408,7 @@
     orders.forEach((order) => {
       const article = document.createElement("article");
       article.className = "lookup-order-card";
+      article.dataset.orderId = order.id;
       article.innerHTML = buildOrderCardHtml(order);
       lookupList.appendChild(article);
     });
@@ -509,12 +516,13 @@
     const waybillNumber = order.logistics && order.logistics.waybillNumber
       ? escapeHtml(order.logistics.waybillNumber)
       : "No waybill";
+    const trackButtonDisabled = !(order.logistics && order.logistics.waybillNumber) ? "disabled" : "";
 
     return `
       <div class="lookup-order-head">
         <div>
           <h3>${escapeHtml(order.id)}</h3>
-          <p>${escapeHtml(order.createdAt || "")}</p>
+          <p>${escapeHtml(formatDateTime(order.createdAt || ""))}</p>
         </div>
         <strong class="lookup-order-state">${escapeHtml(order.paymentStatusText || "Pending")}</strong>
       </div>
@@ -531,14 +539,49 @@
         <div><dt>Tx hash</dt><dd>${escapeHtml(order.paymentTxId || "")}</dd></div>
       </dl>
 
+      <section class="lookup-waybill-panel">
+        <div class="lookup-waybill-head">
+          <strong>Waybill number</strong>
+          <button class="button ghost small" type="button" data-track-order ${trackButtonDisabled}>Track logistics</button>
+        </div>
+        <p class="lookup-waybill-number">${waybillNumber}</p>
+      </section>
+
       <section class="lookup-tracking">
         <div class="lookup-tracking-head">
-          <strong>Tracking</strong>
-          <span>${waybillNumber}</span>
+          <strong>Logistics tracking</strong>
         </div>
         ${trackingHtml}
       </section>
     `;
+  }
+
+  async function handleTrackLogistics(button) {
+    const card = button.closest("[data-order-id]");
+    if (!card) {
+      return;
+    }
+
+    const orderId = String(card.dataset.orderId || "").trim();
+    if (!orderId) {
+      return;
+    }
+
+    const originalText = button.textContent;
+    button.disabled = true;
+    button.textContent = "Loading...";
+
+    try {
+      const query = new URLSearchParams();
+      query.set("orderId", orderId);
+      const response = await fetchJson(`/api/check-payment?${query.toString()}`, { method: "GET" });
+      card.innerHTML = buildOrderCardHtml(response.order);
+    } catch (error) {
+      lookupAlert.hidden = false;
+      lookupAlert.textContent = getErrorMessage(error, "Failed to load logistics tracking.");
+      button.disabled = false;
+      button.textContent = originalText;
+    }
   }
 
   function buildTrackingHtml(tracking) {
@@ -565,6 +608,19 @@
       .replace(/>/g, "&gt;")
       .replace(/"/g, "&quot;")
       .replace(/'/g, "&#39;");
+  }
+
+  function formatDateTime(value) {
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) {
+      return value;
+    }
+
+    return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`;
+  }
+
+  function pad(value) {
+    return String(value).padStart(2, "0");
   }
 
   function createPaymentModal() {
