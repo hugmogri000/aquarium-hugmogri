@@ -2,7 +2,7 @@ export const PAYMENT_CONFIG = {
   productName: "Eco Bucket Aquarium",
   network: "TRON / TRC20-USDT",
   paymentCurrency: "USDT",
-  productPriceUsd: 58,
+  productPriceUsd: 68,
   paymentMatchWindowHours: 48,
   shippingUsd: {
     usa: 150,
@@ -10,8 +10,8 @@ export const PAYMENT_CONFIG = {
   },
   uniquePayableUsdt: {
     production: {
-      usa: { min: 206.0, max: 207.9, step: 0.1 },
-      australia: { min: 156.0, max: 157.9, step: 0.1 },
+      usa: { min: 216.0, max: 217.9, step: 0.1 },
+      australia: { min: 166.0, max: 167.9, step: 0.1 },
     },
     test: {
       usa: { min: 1.0, max: 2.9, step: 0.1 },

@@ -230,7 +230,7 @@ function createPreviewOrder(payload) {
   const createdAt = new Date().toISOString();
   const orderId = createOrderId();
   const country = payload.country === "australia" ? "australia" : "usa";
-  const baseAmountUsd = 58 + (country === "australia" ? 100 : 150);
+  const baseAmountUsd = 68 + (country === "australia" ? 100 : 150);
   const range = getPreviewRange(country);
   const payableAmountUsdt = normalizeAmount(range.min + Math.floor(Math.random() * 20) / 10, 1);
   const amountTailUsdt = normalizeAmount(baseAmountUsd - Number(payableAmountUsdt), 2);

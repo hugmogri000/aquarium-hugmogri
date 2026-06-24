@@ -9,7 +9,7 @@
     productName: "Eco Bucket Aquarium",
     network: "TRON / TRC20-USDT",
     paymentCurrency: "USDT",
-    productPriceUsd: 58,
+    productPriceUsd: 68,
     shippingUsd: {
       usa: 150,
       australia: 100,
@@ -682,7 +682,7 @@
           <div class="order-summary" aria-live="polite">
             <span>Selection: <strong data-order-choice>Choose bucket and stand color</strong></span>
             <span>Country: <strong data-order-country>Choose country</strong></span>
-            <span>Product price: <strong data-product-price>58 USD</strong></span>
+            <span>Product price: <strong data-product-price>68 USD</strong></span>
             <span>Shipping: <strong data-shipping-price>--</strong></span>
             <span>Base total: <strong data-total-price>--</strong></span>
             <span>Payment range: <strong data-price-range>--</strong></span>
