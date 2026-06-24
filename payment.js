@@ -15,8 +15,8 @@
       australia: 100,
     },
     displayRange: {
-      usa: "206.0-207.9 USDT",
-      australia: "156.0-157.9 USDT",
+      usa: "216.0-217.9 USDT",
+      australia: "166.0-167.9 USDT",
     },
     receivingAddress: "TAVdxDuCmXGHnvcHsamw68mTUXSkD8Pp7d",
     paymentTip: "Pay the exact amount shown below. Each order is matched by its dedicated amount.",

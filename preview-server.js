@@ -278,8 +278,8 @@ function createPreviewOrder(payload) {
 function getPreviewRange(country) {
   if (PAYMENT_MODE === "production") {
     return country === "australia"
-      ? { min: 156.0, max: 157.9 }
-      : { min: 206.0, max: 207.9 };
+      ? { min: 166.0, max: 167.9 }
+      : { min: 216.0, max: 217.9 };
   }
 
   return country === "australia"
